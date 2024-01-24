@@ -79,29 +79,12 @@ const supportedShortcutKey = z.enum([
   'Numpad0'
 ])
 
-const ShortcutSchema = z.object({
+export const ShortcutSchema = z.object({
   modifierKeys: z.array(supportedModifierKey).default([]),
   shortcutKey: supportedShortcutKey,
   enabled: z.boolean().default(true),
   configuring: z.boolean().default(false)
 })
-
-const v37 = z.object({
-  summon: ShortcutSchema
-})
-
-const defaultShortcuts = {
-  summon: {
-    modifierKeys: ['Alt' as const],
-    shortcutKey: 'Slash' as const,
-    enabled: true,
-    configuring: false
-  }
-}
-
-const latest = v37.catch(defaultShortcuts).default(defaultShortcuts)
-
-export { v37, latest }
 
 export type ModifierKey = z.infer<typeof supportedModifierKey>
 export type ShortcutKey = z.infer<typeof supportedShortcutKey>

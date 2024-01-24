@@ -8,7 +8,6 @@ const account = '0x3ba7bd5cd1c19f678d9c8edfa043de5a57570e06'
 beforeEach(() => {
   // ensure that the balances have been updated within the range to not be considered stale
   store.set('main.accounts', account, 'balances.lastUpdated', new Date())
-  store.set('main.assetPreferences', { tokens: {}, collections: {} })
 })
 
 describe('#loadAssets', () => {
@@ -38,7 +37,7 @@ describe('#loadAssets', () => {
       address: '0x383518188c0c6d7730d91b2c03a03c837814a899'
     }
 
-    store.set('main.rates', `${balance.chainId}:${balance.address}`, priceData)
+    store.set('main.rates', balance.address, priceData)
     store.set('main.balances', account, [balance])
 
     expect(loadAssets(account)).toEqual({
@@ -103,7 +102,7 @@ describe('#createObserver', () => {
       address: '0x383518188c0c6d7730d91b2c03a03c837814a899'
     }
 
-    store.set('main.rates', `${balance.chainId}:${balance.address}`, priceData)
+    store.set('main.rates', balance.address, priceData)
     store.set('main.balances', account, [balance])
 
     fireObserver()

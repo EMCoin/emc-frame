@@ -55,7 +55,7 @@ const main = async () => {
     console.log({ signedTypedDataAsObject })
   } catch (e) {
     if (e.message === 'Unexpected end of JSON input') {
-      console.log('Cannot connect to Frame. Is Frame running?')
+      console.log('Cannot connect to Emc-Frame. Is Emc-Frame running?')
     } else {
       console.log(e)
     }

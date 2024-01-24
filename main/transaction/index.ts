@@ -3,13 +3,13 @@ import { addHexPrefix, intToHex } from '@ethereumjs/util'
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx'
 import { Common } from '@ethereumjs/common'
 
-import chainConfig from '../chains/config'
 import { AppVersion, SignerSummary } from '../signers/Signer'
 import { GasFeesSource, TransactionData, typeSupportsBaseFee } from '../../resources/domain/transaction'
 import { isNonZeroHex } from '../../resources/utils'
+import chainConfig from '../chains/config'
 import { TransactionRequest, TxClassification } from '../accounts/types'
 
-import type { Gas } from '../store/state/types'
+import type { Gas } from '../store/state'
 
 const londonHardforkSigners: SignerCompatibilityByVersion = {
   seed: () => true,
@@ -74,6 +74,23 @@ function londonToLegacy(txData: TransactionData): TransactionData {
   return txData
 }
 
+function maxFee(rawTx: TransactionData) {
+  const chainId = parseInt(rawTx.chainId)
+
+  // for ETH-based chains, the max fee should be 2 ETH
+  if ([1, 3, 4, 5, 6, 10, 42, 61, 62, 63, 69, 8453, 42161, 421611, 7777777].includes(chainId)) {
+    return 2 * 1e18
+  }
+
+  // for Fantom, the max fee should be 250 FTM
+  if ([250, 4002].includes(chainId)) {
+    return 250 * 1e18
+  }
+
+  // for all other chains, default to 50 of the chain's currency
+  return 50 * 1e18
+}
+
 function calculateMaxFeePerGas(maxBaseFee: string, maxPriorityFee: string) {
   const maxFeePerGas = BigNumber(maxPriorityFee).plus(maxBaseFee).toString(16)
   return addHexPrefix(maxFeePerGas)
@@ -83,7 +100,7 @@ function populate(rawTx: TransactionData, chainConfig: Common, gas: Gas): Transa
   const txData: TransactionData = { ...rawTx }
 
   // non-EIP-1559 case
-  if (!chainConfig.isActivatedEIP(1559) || !gas.fees) {
+  if (!chainConfig.isActivatedEIP(1559) || !gas.price.fees) {
     txData.type = intToHex(chainConfig.isActivatedEIP(2930) ? 1 : 0)
 
     const useFrameGasPrice = !rawTx.gasPrice || isNaN(parseInt(rawTx.gasPrice, 16))
@@ -115,14 +132,14 @@ function populate(rawTx: TransactionData, chainConfig: Common, gas: Gas): Transa
   }
 
   const maxPriorityFee =
-    useFrameMaxPriorityFeePerGas && gas.fees?.maxPriorityFeePerGas
-      ? gas.fees.maxPriorityFeePerGas
+    useFrameMaxPriorityFeePerGas && gas.price.fees.maxPriorityFeePerGas
+      ? gas.price.fees.maxPriorityFeePerGas
       : (rawTx.maxPriorityFeePerGas as string)
 
   // if no valid dapp-supplied value for maxFeePerGas we calculate it
   txData.maxFeePerGas =
-    useFrameMaxFeePerGas && gas.fees?.maxBaseFeePerGas
-      ? calculateMaxFeePerGas(gas.fees.maxBaseFeePerGas, maxPriorityFee)
+    useFrameMaxFeePerGas && gas.price.fees.maxBaseFeePerGas
+      ? calculateMaxFeePerGas(gas.price.fees.maxBaseFeePerGas, maxPriorityFee)
       : txData.maxFeePerGas
 
   // if no valid dapp-supplied value for maxPriorityFeePerGas we use the Frame-supplied value
@@ -174,4 +191,4 @@ function classifyTransaction({
   return TxClassification.NATIVE_TRANSFER
 }
 
-export { populate, sign, signerCompatibility, londonToLegacy, classifyTransaction }
+export { maxFee, populate, sign, signerCompatibility, londonToLegacy, classifyTransaction }

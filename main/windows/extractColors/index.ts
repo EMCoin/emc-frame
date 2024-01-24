@@ -132,7 +132,7 @@ async function extractColors(url: string, ens: string) {
   } finally {
     if (view) {
       const webcontents = view.webContents as any
-      if (webcontents && !webcontents.isDestroyed()) webcontents.destroy()
+      webcontents.destroy()
 
       view = null
     }

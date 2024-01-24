@@ -1,17 +1,16 @@
+// @ts-nocheck
 // legacy migrations that were written in JS and have not been ported
 // to Typescript
 
-import log from 'electron-log'
 import { v5 as uuidv5 } from 'uuid'
 import { z } from 'zod'
+import log from 'electron-log'
 
 import { accountNS, isDefaultAccountName } from '../../../../../resources/domain/account'
 import { isWindows } from '../../../../../resources/platform'
 
-type LegacyMigration = (initial: unknown) => unknown
-
-const migrations: Record<number, LegacyMigration> = {
-  4: (initial: any) => {
+const migrations = {
+  4: (initial) => {
     // If persisted state still has main.gasPrice, move gas settings into networks
     const gasPrice = initial.main.gasPrice // ('gasPrice', false)
 
@@ -77,12 +76,11 @@ const migrations: Record<number, LegacyMigration> = {
     }
 
     Object.keys(initial.main.networks.ethereum).forEach((id) => {
-      const chainId = parseInt(id)
       // Earlier versions of v0.3.3 did not include symbols
       if (!initial.main.networks.ethereum[id].symbol) {
-        if (chainId === 74) {
+        if (id === 74) {
           initial.main.networks.ethereum[id].symbol = 'EIDI'
-        } else if (chainId === 100) {
+        } else if (id === 100) {
           initial.main.networks.ethereum[id].symbol = 'xDAI'
         } else {
           initial.main.networks.ethereum[id].symbol = 'ETH'
@@ -104,7 +102,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  5: (initial: any) => {
+  5: (initial) => {
     // Add Polygon to persisted networks
     initial.main.networks.ethereum[137] = {
       id: 137,
@@ -141,7 +139,7 @@ const migrations: Record<number, LegacyMigration> = {
     }
     return initial
   },
-  6: (initial: any) => {
+  6: (initial) => {
     // If previous hardwareDerivation is testnet, set that for split ledger/trezor derevation
     if (initial.main.hardwareDerivation === 'testnet') {
       initial.main.ledger.derivation = 'testnet'
@@ -149,10 +147,10 @@ const migrations: Record<number, LegacyMigration> = {
     }
     return initial
   },
-  7: (initial: any) => {
+  7: (initial) => {
     // Move account to become cross chain accounts
     const moveOldAccountsToNewAddresses = () => {
-      const addressesToMove: Record<string, string> = {}
+      const addressesToMove = {}
       const accounts = JSON.parse(JSON.stringify(initial.main.accounts))
       Object.keys(accounts).forEach((id) => {
         if (id.startsWith('0x')) {
@@ -171,7 +169,7 @@ const migrations: Record<number, LegacyMigration> = {
     moveOldAccountsToNewAddresses()
 
     // Once this is complete they can now do the current account migration
-    const newAccounts: Record<string, any> = {}
+    const newAccounts = {}
     // const nameCount = {}
     let { accounts, addresses } = initial.main
     accounts = JSON.parse(JSON.stringify(accounts))
@@ -194,14 +192,14 @@ const migrations: Record<number, LegacyMigration> = {
           ? Object.assign({}, addresses[address].permissions)
           : {}
 
-      const matchingAccounts: string[] = []
+      const matchingAccounts = []
       Object.keys(accounts)
         .sort((a, b) => (accounts[a].created > accounts[b].created ? 1 : -1))
         .forEach((id) => {
           if (
             accounts[id].addresses &&
             accounts[id].addresses.map &&
-            accounts[id].addresses.map((a: string) => a.toLowerCase()).indexOf(address) > -1
+            accounts[id].addresses.map((a) => a.toLowerCase()).indexOf(address) > -1
           ) {
             matchingAccounts.push(id)
           }
@@ -239,7 +237,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  8: (initial: any) => {
+  8: (initial) => {
     // Add on/off value to chains
     Object.keys(initial.main.networks.ethereum).forEach((chainId) => {
       initial.main.networks.ethereum[chainId].on =
@@ -248,7 +246,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  9: (initial: any) => {
+  9: (initial) => {
     Object.keys(initial.main.networks.ethereum).forEach((chainId) => {
       if (chainId === '1') {
         initial.main.networks.ethereum[chainId].layer = 'mainnet'
@@ -265,7 +263,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  10: (initial: any) => {
+  10: (initial) => {
     // Add Optimism to persisted networks
     initial.main.networks.ethereum[10] = {
       id: 10,
@@ -304,7 +302,7 @@ const migrations: Record<number, LegacyMigration> = {
     }
     return initial
   },
-  11: (initial: any) => {
+  11: (initial) => {
     // Convert all Ξ symbols to ETH
     Object.keys(initial.main.networks.ethereum).forEach((chain) => {
       if (initial.main.networks.ethereum[chain].symbol === 'Ξ') {
@@ -327,7 +325,7 @@ const migrations: Record<number, LegacyMigration> = {
         }
 
         let [block, localTime] = initial.main.accounts[account].created.split(':')
-        if (block.startsWith('0x')) block = parseInt(block, 16)
+        if (block.startsWith('0x')) block = parseInt(block, 'hex')
         if (block > 12726312) block = 12726312
         initial.main.accounts[account].created = block + ':' + localTime
       } catch (e) {
@@ -338,7 +336,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  12: (initial: any) => {
+  12: (initial) => {
     // Update old smart accounts
     Object.keys(initial.main.accounts).forEach((id) => {
       if (initial.main.accounts[id].smart) {
@@ -348,7 +346,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  13: (initial: any) => {
+  13: (initial) => {
     const defaultMeta = {
       gas: {
         price: {
@@ -357,8 +355,6 @@ const migrations: Record<number, LegacyMigration> = {
         }
       }
     }
-
-    initial.main.networksMeta = initial.main.networksMeta || { ethereum: {} }
 
     // ensure all network configurations have corresponding network meta
     Object.keys(initial.main.networks.ethereum).forEach((networkId) => {
@@ -378,7 +374,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  14: (initial: any) => {
+  14: (initial) => {
     if (initial.main.networks.ethereum[137] && initial.main.networks.ethereum[137].connection) {
       const { primary, secondary } = initial.main.networks.ethereum[137].connection || {}
       if (primary.current === 'matic') primary.current = 'infura'
@@ -438,7 +434,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  15: (initial: any) => {
+  15: (initial) => {
     // Polygon
     if (initial.main.networks.ethereum['137']) {
       const oldExplorer = initial.main.networks.ethereum['137'].explorer
@@ -451,7 +447,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  16: (initial: any) => {
+  16: (initial) => {
     if (initial.main.currentNetwork?.id) {
       initial.main.currentNetwork.id = parseInt(initial.main.currentNetwork.id)
     }
@@ -464,12 +460,12 @@ const migrations: Record<number, LegacyMigration> = {
     })
     return initial
   },
-  17: (initial: any) => {
+  17: (initial) => {
     // update Lattice settings
     const lattices = initial.main.lattice || {}
     const oldSuffix = initial.main.latticeSettings?.suffix || ''
 
-    Object.values(lattices).forEach((lattice: any) => {
+    Object.values(lattices).forEach((lattice) => {
       lattice.paired = true
       lattice.tag = oldSuffix
       lattice.deviceName = 'GridPlus'
@@ -477,9 +473,9 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  18: (initial: any) => {
+  18: (initial) => {
     // move custom tokens to new location
-    let existingCustomTokens: any[] = []
+    let existingCustomTokens = []
 
     if (Array.isArray(initial.main.tokens)) {
       existingCustomTokens = [...initial.main.tokens]
@@ -489,16 +485,16 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  19: (initial: any) => {
+  19: (initial) => {
     // delete main.currentNetwork and main.clients
     delete initial.main.currentNetwork
     delete initial.main.clients
 
     return initial
   },
-  20: (initial: any) => {
+  20: (initial) => {
     // move all Aragon accounts to mainnet and add a warning if we did
-    Object.values(initial.main.accounts).forEach((account: any) => {
+    Object.values(initial.main.accounts).forEach((account) => {
       if (account.smart?.type === 'aragon' && !account.smart.chain) {
         account.smart.chain = { type: 'ethereum', id: 1 }
         initial.main.mute.aragonAccountMigrationWarning = false
@@ -507,7 +503,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  21: (initial: any) => {
+  21: (initial) => {
     // add sepolia network information
     if (!initial.main.networks.ethereum[11155111]) {
       initial.main.networks.ethereum[11155111] = {
@@ -610,17 +606,17 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  22: (initial: any) => {
+  22: (initial) => {
     // set "isTestnet" flag on all chains based on layer value
-    Object.values(initial.main.networks.ethereum).forEach((chain: any) => {
+    Object.values(initial.main.networks.ethereum).forEach((chain) => {
       chain.isTestnet = chain.layer === 'testnet'
     })
 
     return initial
   },
-  23: (initial: any) => {
+  23: (initial) => {
     // set icon and primaryColor values on all chains
-    Object.entries(initial.main.networksMeta.ethereum as Record<string, any>).forEach(([id, chain]) => {
+    Object.entries(initial.main.networksMeta.ethereum).forEach(([id, chain]) => {
       if (id === '1') {
         chain.icon = ''
         chain.primaryColor = 'accent1' // Main
@@ -647,9 +643,9 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  24: (initial: any) => {
+  24: (initial) => {
     // set default nativeCurrency where it doesn't exist
-    Object.values(initial.main.networksMeta.ethereum).forEach((chain: any) => {
+    Object.values(initial.main.networksMeta.ethereum).forEach((chain) => {
       if (!chain.nativeCurrency) {
         chain.nativeCurrency = {
           usd: { price: 0, change24hr: 0 },
@@ -663,10 +659,10 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  25: (initial: any) => {
+  25: (initial) => {
     // remove Optimism RPC connection presets and use Infura instead
     if ('10' in initial.main.networks.ethereum) {
-      const removeOptimismConnection = (connection: any) => ({
+      const removeOptimismConnection = (connection) => ({
         ...connection,
         current: connection.current === 'optimism' ? 'infura' : connection.current
       })
@@ -684,8 +680,8 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  26: (initial: any) => {
-    Object.values(initial.main.networks.ethereum).forEach((network: any) => {
+  26: (initial) => {
+    Object.values(initial.main.networks.ethereum).forEach((network) => {
       const { symbol, id } = network
       initial.main.networksMeta.ethereum[id].nativeCurrency.symbol =
         initial.main.networksMeta.ethereum[id].nativeCurrency.symbol || symbol
@@ -694,10 +690,10 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  27: (initial: any) => {
+  27: (initial) => {
     // change any accounts with the old names of "seed signer" or "ring signer" to "hot signer"
 
-    const accounts = Object.entries(initial.main.accounts as Record<string, any>).map(([id, account]) => {
+    const accounts = Object.entries(initial.main.accounts).map(([id, account]) => {
       const name = ['ring account', 'seed account'].includes((account.name || '').toLowerCase())
         ? 'Hot Account'
         : account.name
@@ -709,37 +705,35 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  28: (initial: any) => {
-    const getUpdatedSymbol = (symbol: string, chainId: string) => {
+  28: (initial) => {
+    const getUpdatedSymbol = (symbol, chainId) => {
       return parseInt(chainId) === 5 ? 'görETH' : parseInt(chainId) === 11155111 ? 'sepETH' : symbol
     }
 
-    const updatedMeta = Object.entries(initial.main.networksMeta.ethereum as Record<string, any>).map(
-      ([id, chainMeta]) => {
-        const { symbol, decimals } = chainMeta.nativeCurrency
-        const updatedSymbol = (symbol || '').toLowerCase() !== 'eth' ? symbol : getUpdatedSymbol(symbol, id)
+    const updatedMeta = Object.entries(initial.main.networksMeta.ethereum).map(([id, chainMeta]) => {
+      const { symbol, decimals } = chainMeta.nativeCurrency
+      const updatedSymbol = (symbol || '').toLowerCase() !== 'eth' ? symbol : getUpdatedSymbol(symbol, id)
 
-        const updatedChainMeta = {
-          ...chainMeta,
-          nativeCurrency: {
-            ...chainMeta.nativeCurrency,
-            symbol: updatedSymbol,
-            decimals: decimals || 18
-          }
+      const updatedChainMeta = {
+        ...chainMeta,
+        nativeCurrency: {
+          ...chainMeta.nativeCurrency,
+          symbol: updatedSymbol,
+          decimals: decimals || 18
         }
-
-        return [id, updatedChainMeta]
       }
-    )
+
+      return [id, updatedChainMeta]
+    })
 
     initial.main.networksMeta.ethereum = Object.fromEntries(updatedMeta)
 
     return initial
   },
-  29: (initial: any) => {
+  29: (initial) => {
     // add accountsMeta
     initial.main.accountsMeta = {}
-    Object.entries(initial.main.accounts as Record<string, any>).forEach(([id, account]) => {
+    Object.entries(initial.main.accounts).forEach(([id, account]) => {
       // Watch accounts, having a signer type of "address", used to have a default label of "Address Account"
       const isPreviousDefaultWatchAccountName =
         account.lastSignerType.toLowerCase() === 'address' && account.name.toLowerCase() === 'address account'
@@ -754,9 +748,9 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  30: (initial: any) => {
+  30: (initial) => {
     // convert Aragon accounts to watch only
-    Object.entries(initial.main.accounts as Record<string, any>).forEach(([id, { smart, name, created }]) => {
+    Object.entries(initial.main.accounts).forEach(([id, { smart, name, created }]) => {
       if (smart) {
         initial.main.accounts[id] = {
           id,
@@ -776,21 +770,19 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  31: (initial: any) => {
+  31: (initial) => {
     const dodgyAddress = '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000'
 
-    initial.main.balances = initial.main.balances || {}
-
-    Object.entries(initial.main.balances as Record<string, any[]>).forEach(([address, balances]) => {
+    Object.entries(initial.main.balances).forEach(([address, balances]) => {
       initial.main.balances[address] = balances.filter(({ address }) => address !== dodgyAddress)
     })
 
     return initial
   },
-  32: (initial: any) => {
+  32: (initial) => {
     const dodgyAddress = '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000'
     const knownTokens = initial.main.tokens.known || {}
-    Object.entries(knownTokens as Record<string, any[]>).forEach(([address, tokens]) => {
+    Object.entries(knownTokens).forEach(([address, tokens]) => {
       knownTokens[address] = tokens.filter(({ address }) => address !== dodgyAddress)
     })
 
@@ -798,7 +790,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  33: (initial: any) => {
+  33: (initial) => {
     // add Base testnet network information
     if (!initial.main.networks.ethereum[84531]) {
       initial.main.networks.ethereum[84531] = {
@@ -865,10 +857,10 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  34: (initial: any) => {
+  34: (initial) => {
     // Add any missing nativeCurrency name values
     // Base Görli (84531) value added in #33
-    const nativeCurrencyMap: Record<number, any> = {
+    const nativeCurrencyMap = {
       1: {
         name: 'Ether',
         symbol: 'ETH'
@@ -899,7 +891,7 @@ const migrations: Record<number, LegacyMigration> = {
       }
     }
 
-    Object.values(initial.main.networks.ethereum as Record<string, any>).forEach((network) => {
+    Object.values(initial.main.networks.ethereum).forEach((network) => {
       const { id } = network
       const { name = '', symbol = '' } = nativeCurrencyMap[id] || {}
       const existingMeta = initial.main.networksMeta.ethereum[id] || {}
@@ -917,9 +909,9 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  35: (initial: any) => {
+  35: (initial) => {
     const { shortcuts } = initial.main || {}
-    const { altSlash: summonShortcutEnabled, ...otherShortcuts } = shortcuts || {}
+    const { altSlash: summonShortcutEnabled, ...otherShortcuts } = shortcuts
 
     initial.main.shortcuts = {
       ...otherShortcuts,
@@ -933,7 +925,7 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  36: (initial: any) => {
+  36: (initial) => {
     if (
       initial?.main?.shortcuts?.summon &&
       typeof initial.main.shortcuts.summon === 'object' &&
@@ -944,9 +936,9 @@ const migrations: Record<number, LegacyMigration> = {
 
     return initial
   },
-  37: (initial: any) => {
+  37: (initial) => {
     const replaceAltGr = () => (isWindows() ? ['Alt', 'Control'] : ['Alt'])
-    const updateModifierKey = (key: string) => (key === 'AltGr' ? replaceAltGr() : key)
+    const updateModifierKey = (key) => (key === 'AltGr' ? replaceAltGr(key) : key)
 
     const defaultShortcuts = {
       summon: {

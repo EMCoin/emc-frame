@@ -1,7 +1,6 @@
 import { randomInt } from 'crypto'
 import { addHexPrefix, intToHex, stripHexPrefix } from '@ethereumjs/util'
 import { getAddress as getChecksumAddress } from '@ethersproject/address'
-import BigNumber from 'bignumber.js'
 
 const weiToGwei = (wei: number) => wei / 1e9
 const weiToHex = (wei: number) => addHexPrefix(wei.toString(16))
@@ -42,10 +41,6 @@ function debounce(func: (...args: any) => any, timeout = 300) {
   }
 }
 
-async function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 function instanceOfNodeError<T extends ErrorConstructor>(
   value: Error,
   errorType: T
@@ -84,17 +79,9 @@ function getAddress(address: Address) {
     return lowerCaseAddress
   }
 }
-
 function isNonZeroHex(hex: string) {
   return !!hex && !['0x', '0x0'].includes(hex)
 }
-
-function minimumHex(hexValue: string, min = 0) {
-  return addHexPrefix(BigNumber.maximum(hexValue, min).toString(16))
-}
-
-const displayName = (name = '', length = 16) =>
-  name.length > length ? name.substring(0, length - 3) + '...' : name
 
 export {
   getErrorCode,
@@ -103,7 +90,6 @@ export {
   arraysEqual,
   arraysMatch,
   debounce,
-  wait,
   weiToGwei,
   weiToHex,
   gweiToWei,
@@ -116,7 +102,5 @@ export {
   getAddress,
   stripHexPrefix,
   matchFilter,
-  isNonZeroHex,
-  minimumHex,
-  displayName
+  isNonZeroHex
 }

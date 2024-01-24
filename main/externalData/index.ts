@@ -2,151 +2,131 @@ import log from 'electron-log'
 import Pylon from '@framelabs/pylon-client'
 
 import store from '../store'
-import RatesSubscriptions from './rates/subscriptions'
-import BalanceScanner from './balances/scanner'
-import { handleCustomTokenUpdate } from './balances/processor'
-import surface from './surface'
-import { storeApi } from './storeApi'
-import { debounce } from '../../resources/utils'
+import Inventory from './inventory'
+import Rates from './assets'
+import Balances from './balances'
+import { arraysMatch, debounce } from '../../resources/utils'
 
-import {
-  createActiveAccountObserver,
-  createChainsObserver,
-  createTokensObserver,
-  createTrayObserver
-} from './observers'
-
-import type { Token } from '../store/state/types'
+import type { Chain, Token } from '../store/state'
 
 export interface DataScanner {
   close: () => void
 }
 
-//TODO: cleanup state now that we are using new observer pattern...
-const externalData = function () {
-  const scanner = BalanceScanner()
-  scanner.start()
-
-  const updateNetworks = () => {
-    const activeAccount = storeApi.getActiveAddress()
-    const usingSurface = surface.networks.get(activeAccount)
-    const connectedChains = storeApi.getConnectedNetworkIds()
-    const chainsToScan = connectedChains.filter((chainId) => !usingSurface.includes(chainId))
-
-    log.debug('updateNetworks', { usingSurface, activeAccount, chainsToScan })
-
-    if (activeAccount) {
-      scanner.setNetworks(activeAccount, chainsToScan)
-    }
-
-    rates.updateSubscription()
+const storeApi = {
+  getActiveAddress: () => (store('selected.current') || '') as Address,
+  getCustomTokens: () => (store('main.tokens.custom') || []) as Token[],
+  getKnownTokens: (address?: Address) => ((address && store('main.tokens.known', address)) || []) as Token[],
+  getConnectedNetworks: () => {
+    const networks = Object.values(store('main.networks.ethereum') || {}) as Chain[]
+    return networks.filter(
+      (n) => (n.connection.primary || {}).connected || (n.connection.secondary || {}).connected
+    )
   }
+}
 
-  const updateAccount = (account: string) => {
-    if (account) {
-      scanner.setAddress(account)
-    }
-
-    updateNetworks()
-  }
-
+export default function () {
   const pylon = new Pylon('wss://data.pylon.link')
-  const rates = RatesSubscriptions(pylon)
 
-  rates.start()
-  // NOTE: this should be uncommented when we allow surface to subscribe to multiple accounts...
-  // const accounts = storeApi.getAccounts()
-  // surface.updateSubscribers(accounts)
+  const inventory = Inventory(pylon, store)
+  const rates = Rates(pylon, store)
+  const balances = Balances(store)
 
-  surface.networks.on('updated', ({ account }) => {
-    if (account === storeApi.getActiveAddress()) {
-      updateNetworks()
-    }
-  })
-
+  let connectedChains: number[] = [],
+    activeAccount: Address = ''
   let pauseScanningDelay: NodeJS.Timeout | undefined
 
-  //TODO: does this need to hit to t
-  const handleTokensUpdate = debounce((activeAccount: string, tokens: Token[]) => {
-    log.debug('Updating external data due to token updates', { activeAccount })
+  inventory.start()
+  rates.start()
+  balances.start()
 
-    handleCustomTokenUpdate(tokens)
+  const handleNetworkUpdate = debounce((newlyConnected: number[]) => {
+    log.verbose('updating external data due to network update(s)', { connectedChains, newlyConnected })
+
+    rates.updateSubscription(connectedChains, activeAccount)
+
+    if (newlyConnected.length > 0 && activeAccount) {
+      balances.addNetworks(activeAccount, newlyConnected)
+    }
+  }, 500)
+
+  const handleAddressUpdate = debounce(() => {
+    log.verbose('updating external data due to address update(s)', { activeAccount })
+
+    balances.setAddress(activeAccount)
+    inventory.setAddresses([activeAccount])
+    rates.updateSubscription(connectedChains, activeAccount)
+  }, 800)
+
+  const handleTokensUpdate = debounce((tokens: Token[]) => {
+    log.verbose('updating external data due to token update(s)', { activeAccount })
 
     if (activeAccount) {
-      const tokensToScan = tokens.filter((token) => !surface.networks.has(activeAccount, token.chainId))
-      scanner.addTokens(activeAccount, tokensToScan)
+      balances.addTokens(activeAccount, tokens)
     }
 
-    rates.updateSubscription()
+    rates.updateSubscription(connectedChains, activeAccount)
   })
 
-  const activeAccountObserver = createActiveAccountObserver({
-    addressChanged(address) {
-      updateAccount(address)
-      const subscribers = address ? [address] : []
-      surface.updateSubscribers(subscribers)
+  const allNetworksObserver = store.observer(() => {
+    const connectedNetworkIds = storeApi
+      .getConnectedNetworks()
+      .map((n) => n.id)
+      .sort()
+
+    if (!arraysMatch(connectedChains, connectedNetworkIds)) {
+      const newlyConnectedNetworks = connectedNetworkIds.filter((c) => !connectedChains.includes(c))
+      connectedChains = connectedNetworkIds
+
+      handleNetworkUpdate(newlyConnectedNetworks)
     }
-  })
+  }, 'externalData:networks')
 
-  // const accountsObserver = createAccountsObserver({
-  //   accountsChanged(accounts) {
-  //     surface.updateSubscribers(accounts)
-  //   }
-  // })
+  const activeAddressObserver = store.observer(() => {
+    const activeAddress = storeApi.getActiveAddress()
+    const knownTokens = storeApi.getKnownTokens(activeAddress)
 
-  const tokensObserver = createTokensObserver({
-    customTokensChanged(address, tokens) {
-      handleTokensUpdate(address, tokens)
-    },
-    knownTokensChanged() {
-      rates.updateSubscription()
+    if (activeAddress !== activeAccount) {
+      activeAccount = activeAddress
+      handleAddressUpdate()
+    } else {
+      handleTokensUpdate(knownTokens)
     }
-  })
+  }, 'externalData:activeAccount')
 
-  const chainsObserver = createChainsObserver({
-    chainsChanged(chains) {
-      updateNetworks()
-    }
-  })
+  const customTokensObserver = store.observer(() => {
+    const customTokens = storeApi.getCustomTokens()
+    handleTokensUpdate(customTokens)
+  }, 'externalData:customTokens')
 
-  const trayObserver = createTrayObserver({
-    trayToggled(open) {
-      if (!open) {
-        // pause balance scanning after the tray is out of view for one minute
-        if (!pauseScanningDelay) {
-          pauseScanningDelay = setTimeout(() => {
-            scanner.pause()
-          }, 1000)
-        }
-      } else {
-        if (pauseScanningDelay) {
-          clearTimeout(pauseScanningDelay)
-          pauseScanningDelay = undefined
+  const trayObserver = store.observer(() => {
+    const open = store('tray.open')
 
-          scanner.resume()
-        }
+    if (!open) {
+      // pause balance scanning after the tray is out of view for one minute
+      if (!pauseScanningDelay) {
+        pauseScanningDelay = setTimeout(balances.pause, 1000)
+      }
+    } else {
+      if (pauseScanningDelay) {
+        clearTimeout(pauseScanningDelay)
+        pauseScanningDelay = undefined
+
+        balances.resume()
       }
     }
-  })
-
-  const observers = [
-    activeAccountObserver,
-    // accountsObserver,
-    tokensObserver,
-    chainsObserver,
-    trayObserver
-  ].map((obs) => store.observer(obs))
-
-  const removeObservers = () => {
-    observers.forEach((obs) => obs.remove())
-  }
+  }, 'externalData:tray')
 
   return {
     close: () => {
-      removeObservers()
-      scanner.stop()
-      surface.close()
+      allNetworksObserver.remove()
+      activeAddressObserver.remove()
+      customTokensObserver.remove()
+      trayObserver.remove()
+
+      inventory.stop()
       rates.stop()
+      balances.stop()
 
       if (pauseScanningDelay) {
         clearTimeout(pauseScanningDelay)
@@ -154,5 +134,3 @@ const externalData = function () {
     }
   } as DataScanner
 }
-
-export default externalData

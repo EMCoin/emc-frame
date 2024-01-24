@@ -1,22 +1,19 @@
-import React, { useState } from 'react'
+import React from 'react'
 import Restore from 'react-restore'
 
 import svg from '../../../resources/svg'
 import link from '../../../resources/link'
 
-import { Fluid, Entity, useFluid } from '../../../resources/Components/Fluid'
-import useStore from '../../../resources/Hooks/useStore'
-
 import Default from './Default'
 
 import Activity from './Activity'
-import Contacts from './Contacts'
 import Chains from './Chains'
 import Balances from './Balances'
 import Gas from '../../../resources/Components/Monitor'
 import Inventory from './Inventory'
 import Permissions from './Permissions'
 import Requests from './Requests'
+import Settings from './Settings'
 import Signer from './Signer'
 
 // move
@@ -42,14 +39,14 @@ const requests = {
 
 const modules = {
   gas: Gas,
-  contacts: Contacts,
   requests: Requests,
   chains: Chains,
   activity: Activity,
   inventory: Inventory,
   permissions: Permissions,
   balances: Balances,
-  signer: Signer
+  signer: Signer,
+  settings: Settings
 }
 
 class _AccountModule extends React.Component {
@@ -71,7 +68,7 @@ class _AccountModule extends React.Component {
     const { id, module, top, index, expanded, expandedData, account, filter } = this.props
     let hidden = false
     let style = {
-      // transform: `translateY(${top}px)`,
+      transform: `translateY(${top}px)`,
       zIndex: 9999 - index,
       height: module.height,
       opacity: 1
@@ -79,7 +76,7 @@ class _AccountModule extends React.Component {
 
     if (hidden) {
       style = {
-        // transform: `translateY(${top}px)`,
+        transform: `translateY(${top}px)`,
         zIndex: 9999 - index,
         height: 0,
         opacity: 0,
@@ -92,21 +89,11 @@ class _AccountModule extends React.Component {
     } else {
       return (
         <div className={'accountModule'} ref={this.moduleRef} style={style}>
-          <Entity
-            key={id}
-            item={{ id }}
-            id={id} // This needs to be a completely uniquie id
-            type={'group'}
-            onOver={(dragItem, position) => {
-              return this.props.updateModuleOrder(dragItem.id, id, position)
-            }}
-          >
-            <div className='accountModuleInner'>
-              <div className='accountModuleCard'>
-                {this.getModule(id, account, expanded, expandedData, filter)}
-              </div>
+          <div className='accountModuleInner cardShow'>
+            <div className='accountModuleCard'>
+              {this.getModule(id, account, expanded, expandedData, filter)}
             </div>
-          </Entity>
+          </div>
         </div>
       )
     }
@@ -115,125 +102,89 @@ class _AccountModule extends React.Component {
 
 const AccountModule = Restore.connect(_AccountModule)
 
-const AccountMain = (props) => {
-  const { id } = props
-
-  const moduleOrder = useStore('panel.account.moduleOrder')
-  const footerHeight = useStore('windows.panel.footer.height')
-  const accountModules = useStore('panel.account.modules')
-
-  const { setScrollTrigger } = useFluid()
-
-  const [state, setState] = useState({
-    expandedModule: '',
-    moduleOrder,
-    accountModuleFilter: ''
-  })
-
-  const accountModuleOrder = state.moduleOrder
-
-  const renderAccountFilter = () => (
-    <div className='panelFilterAccount'>
-      <div className='panelFilterIcon'>{svg.search(12)}</div>
-      <div className='panelFilterInput'>
-        <input
-          tabIndex='-1'
-          type='text'
-          spellCheck='false'
-          onChange={(e) => {
-            const value = e.target.value
-            setState((prevState) => ({ ...prevState, accountModuleFilter: value }))
-          }}
-          value={state.accountModuleFilter}
-        />
-      </div>
-      {state.accountModuleFilter ? (
-        <div
-          className='panelFilterClear'
-          onClick={() => {
-            setState((prevState) => ({ ...prevState, accountModuleFilter: '' }))
-          }}
-        >
-          {svg.close(12)}
-        </div>
-      ) : null}
-    </div>
-  )
-
-  let slideHeight = 0
-  const modules = accountModuleOrder.map((moduleId, i) => {
-    const module = accountModules[moduleId] || { height: 0 }
-    slideHeight += module.height + 12
+// account module is position absolute and with a translateX
+class _AccountMain extends React.Component {
+  constructor(...args) {
+    super(...args)
+    this.state = {
+      expandedModule: ''
+    }
+  }
+  renderAccountFilter() {
     return (
-      <AccountModule
-        key={`toplevelmodule:${moduleId}`}
-        id={moduleId}
-        account={id}
-        module={module}
-        top={slideHeight - module.height - 12}
-        index={i}
-        filter={state.accountModuleFilter}
-        updateModuleOrder={(dragId, overId, position) => {
-          let hasOrderChanged = false
-          setState((prevState) => {
-            let originalArray = [...prevState.moduleOrder]
-            let array = [...prevState.moduleOrder]
-            let dragIndex = array.indexOf(dragId)
-            if (dragIndex === -1) {
-              console.error('dragId not found in the array')
-              return originalArray
-            }
-            array.splice(dragIndex, 1)
-            let overIndex = array.indexOf(overId)
-            if (overIndex === -1) {
-              console.error('overId not found in the array')
-              return originalArray
-            }
-            if (position === 'top' || position === 'left') {
-              array.splice(overIndex, 0, dragId)
-            } else if (position === 'bottom' || position === 'right') {
-              array.splice(overIndex + 1, 0, dragId)
-            } else {
-              throw new Error('Invalid position')
-            }
-            for (let i = 0; i < originalArray.length; i++) {
-              if (originalArray[i] !== array[i]) {
-                hasOrderChanged = true
-                break
-              }
-            }
-            return { moduleOrder: array }
-          })
-          return hasOrderChanged
-        }}
-      />
+      <div className='panelFilterAccount'>
+        <div className='panelFilterIcon'>{svg.search(12)}</div>
+        <div className='panelFilterInput'>
+          <input
+            tabIndex='-1'
+            type='text'
+            spellCheck='false'
+            onChange={(e) => {
+              const value = e.target.value
+              this.setState({ accountModuleFilter: value })
+            }}
+            value={this.state.accountModuleFilter}
+          />
+        </div>
+        {this.state.accountModuleFilter ? (
+          <div
+            className='panelFilterClear'
+            onClick={() => {
+              this.setState({ accountModuleFilter: '' })
+            }}
+          >
+            {svg.close(12)}
+          </div>
+        ) : null}
+      </div>
     )
-  })
+  }
 
-  return (
-    <div className='accountMain' style={{ bottom: `${footerHeight}px` }}>
-      <div className='accountMainFade' />
-      <div
-        className='accountMainScroll'
-        onScroll={(e) => {
-          setScrollTrigger(e)
-        }}
-      >
-        <div className='accountMainSlide' style={{ height: `${slideHeight}px` }}>
-          {renderAccountFilter()}
-          {modules}
+  render() {
+    const accountModules = this.store('panel.account.modules')
+    const accountModuleOrder = this.store('panel.account.moduleOrder')
+    let slideHeight = 0
+    const modules = accountModuleOrder.map((id, i) => {
+      const module = accountModules[id] || { height: 0 }
+      slideHeight += module.height + 12
+      return (
+        <AccountModule
+          key={id}
+          id={id}
+          account={this.props.id}
+          module={module}
+          top={slideHeight - module.height - 12}
+          index={i}
+          filter={this.state.accountModuleFilter}
+        />
+      )
+    })
+    const footerHeight = this.store('windows.panel.footer.height')
+    return (
+      <div className='accountMain' style={{ bottom: footerHeight + 'px' }}>
+        <div className='accountMainScroll'>
+          {this.renderAccountFilter()}
+          <div className='accountMainSlide' style={{ height: slideHeight + 'px' }}>
+            {modules}
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 }
+
+const AccountMain = Restore.connect(_AccountMain)
 
 // AccountView is a reusable template that provides the option to nav back to main
 class _AccountView extends React.Component {
   render() {
+    const accountOpen = this.store('selected.open')
     const footerHeight = this.store('windows.panel.footer.height')
     return (
-      <div className='accountView' style={{ top: '140px', bottom: footerHeight + 'px' }}>
+      <div
+        className='accountView'
+        style={{ top: accountOpen ? '140px' : '80px', bottom: footerHeight + 'px' }}
+      >
         <div className='accountViewMenu cardShow'>
           <div className='accountViewBack' onClick={() => this.props.back()}>
             {svg.chevronLeft(16)}
@@ -328,8 +279,7 @@ class _AccountBody extends React.Component {
             link.send('nav:back', 'panel')
           }}
           {...this.props}
-          accountViewTitle={crumb.data.title || crumb.data.id}
-          key={crumb.data.title || crumb.data.id}
+          accountViewTitle={crumb.data.id}
         >
           <div
             className='accountsModuleExpand cardShow'
@@ -355,11 +305,7 @@ class _AccountBody extends React.Component {
         </AccountView>
       )
     } else {
-      return (
-        <Fluid>
-          <AccountMain {...this.props} />
-        </Fluid>
-      )
+      return <AccountMain {...this.props} />
     }
   }
 }
@@ -368,10 +314,13 @@ const AccountBody = Restore.connect(_AccountBody)
 
 class Account extends React.Component {
   render() {
+    const minimized = this.store('selected.minimized')
+
     return (
       <AccountBody
         id={this.props.id}
         addresses={this.props.addresses}
+        minimized={minimized}
         status={this.props.status}
         signer={this.props.signer}
       />

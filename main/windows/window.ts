@@ -1,27 +1,10 @@
-import {
-  BrowserWindow,
-  BrowserView,
-  BrowserWindowConstructorOptions,
-  shell,
-  Menu,
-  MenuItemConstructorOptions
-} from 'electron'
+import { BrowserWindow, BrowserView, BrowserWindowConstructorOptions, shell } from 'electron'
 import log from 'electron-log'
 import path from 'path'
 
 import store from '../store'
-import { COLORWAYS } from '../../resources/constants'
 
-type OpenExplorer = {
-  chain: {
-    id: number
-    type: string
-  }
-  type: 'tx' | 'address' | 'token'
-  hash?: string
-  address?: string
-  tokenId?: string
-}
+import type { ChainId } from '../store/state'
 
 export function createWindow(
   name: string,
@@ -36,7 +19,7 @@ export function createWindow(
     acceptFirstMouse: true,
     transparent: process.platform === 'darwin',
     show: false,
-    // backgroundColor: COLORWAYS[store('main.colorway') as keyof typeof COLORWAYS]['background'],
+    backgroundColor: store('main.colorwayPrimary', store('main.colorway'), 'background'),
     skipTaskbar: process.platform !== 'linux',
     webPreferences: {
       ...webPreferences,
@@ -75,7 +58,7 @@ export function createViewInstance(
       sandbox: true,
       defaultEncoding: 'utf-8',
       nodeIntegration: false,
-      scrollBounce: false,
+      scrollBounce: true,
       navigateOnDragDrop: false,
       disableBlinkFeatures: 'Auxclick',
       preload: path.resolve('./main/windows/viewPreload.js'),
@@ -88,32 +71,6 @@ export function createViewInstance(
   viewInstance.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 
   return viewInstance
-}
-
-export function createOverlayInstance(
-  url = '',
-  webPreferences: BrowserWindowConstructorOptions['webPreferences'] = {}
-) {
-  const overlayInstance = new BrowserView({
-    webPreferences: {
-      ...webPreferences,
-      contextIsolation: true,
-      webviewTag: false,
-      sandbox: true,
-      defaultEncoding: 'utf-8',
-      nodeIntegration: false,
-      scrollBounce: true,
-      navigateOnDragDrop: false,
-      disableBlinkFeatures: 'Auxclick',
-      preload: path.resolve(process.env.BUNDLE_LOCATION, 'bridge.js')
-    }
-  })
-
-  overlayInstance.webContents.on('will-navigate', (e) => e.preventDefault())
-  overlayInstance.webContents.on('will-attach-webview', (e) => e.preventDefault())
-  overlayInstance.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-
-  return overlayInstance
 }
 
 const externalWhitelist = [
@@ -132,9 +89,7 @@ const externalWhitelist = [
   'https://opensea.io'
 ]
 
-const isValidReleasePage = (url: string) =>
-  url.startsWith('https://github.com/floating/frame/releases/tag') ||
-  url.startsWith('https://github.com/frame-labs/frame-canary/releases/tag')
+const isValidReleasePage = (url: string) => url.startsWith('https://github.com/floating/frame/releases/tag/')
 const isWhitelistedHost = (url: string) =>
   externalWhitelist.some((entry) => url === entry || url.startsWith(entry + '/'))
 
@@ -144,43 +99,19 @@ export function openExternal(url = '') {
   }
 }
 
-async function urlExists(url: string) {
-  try {
-    const response = await fetch(url, { method: 'HEAD', redirect: 'manual' })
-    return !response.redirected && response.ok
-  } catch (error) {
-    console.log(error)
-    return false
-  }
-}
-
-async function getTokenUrl(explorer: string, address: string, tokenId?: string) {
-  const paths = {
-    tokenPath: `${explorer}/token/${address}`,
-    nftPath: `${explorer}/nft/${address}/${tokenId}`
-  }
-  if (!tokenId) return paths.tokenPath
-  const urls = [paths.nftPath, paths.tokenPath]
-  const urlExistenceList = await Promise.all(urls.map(urlExists))
-  const existingUrlIndex = urlExistenceList.findIndex((exists) => exists)
-  return existingUrlIndex >= 0 ? urls[existingUrlIndex] : `${explorer}/address/${address}`
-}
-
-export async function openBlockExplorer(openExplorer: OpenExplorer) {
-  const { chain, type, hash, address, tokenId } = openExplorer
-
+export function openBlockExplorer({ id, type }: ChainId, hash?: string, account?: string) {
   // remove trailing slashes from the base url
-  const explorer = (store('main.networks', chain.type, chain.id, 'explorer') || '').replace(/\/+$/, '')
+  const explorer = (store('main.networks', type, id, 'explorer') || '').replace(/\/+$/, '')
 
-  if (!explorer) return
-
-  const urlFormats = {
-    tx: () => hash && `${explorer}/tx/${hash}`,
-    token: async () => address && (await getTokenUrl(explorer, address, tokenId)),
-    address: () => address && `${explorer}/address/${address}`
+  if (explorer) {
+    if (hash) {
+      const hashPath = hash && `/tx/${hash}`
+      shell.openExternal(`${explorer}${hashPath}`)
+    } else if (account) {
+      const accountPath = account && `/address/${account}`
+      shell.openExternal(`${explorer}${accountPath}`)
+    } else {
+      shell.openExternal(`${explorer}`)
+    }
   }
-
-  const explorerUrl = explorer && urlFormats[type] ? await urlFormats[type]() : explorer
-
-  shell.openExternal(explorerUrl || explorer)
 }

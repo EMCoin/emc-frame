@@ -12,7 +12,7 @@ const OmnichainSlide = ({ setTitle, setProceed }) => {
     <Slide>
       <SlideBody>
         <SlideItem>
-          <div>With Frame's Omnichain routing dapps can</div>
+          <div>With Emc-Frame's Omnichain routing dapps can</div>
           <div>seamlessly use multiple chains at the same time,</div>
           <div>enabling truly multichain experiences.</div>
         </SlideItem>

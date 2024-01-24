@@ -152,7 +152,7 @@ class Updater {
 
         log.info('Auto check found available update', { version, location })
 
-        this.updateAvailable(version, location)
+        // this.updateAvailable(version, location)
       })
 
       this.autoUpdater.on('update-not-available', () => {
@@ -194,7 +194,7 @@ class Updater {
         const { version, location } = update
         log.debug('Manual check found available update', { version, location })
 
-        this.updateAvailable(version, location)
+        // this.updateAvailable(version, location)
       }
     } catch (e) {
       log.error('Error performing manual check for updates', e)

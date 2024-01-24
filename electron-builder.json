@@ -1,7 +1,7 @@
 {
-  "appId": "sh.frame.canary",
+  "appId": "sh.frame.app",
   "afterSign": "./build/notarize.js",
-  "productName": "Frame Canary",
+  "productName": "Emc-Frame",
   "linux": {
     "target": [
       {
@@ -33,7 +33,7 @@
     "requirements": "build/electron-builder-requirements.txt"
   },
   "win": {
-    "publisherName": "Frame Labs, Inc.",
+    "publisherName": "Emc-Frame Labs, Inc.",
     "signAndEditExecutable": true,
     "icon": "build/icons/icon.png"
   },

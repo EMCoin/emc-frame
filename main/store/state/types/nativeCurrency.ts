@@ -1,16 +1,12 @@
 import { z } from 'zod'
+import { RateSchema } from './rate'
 
-import { v37 as v37RateSchema } from './rate'
-
-const v37 = z.object({
+export const NativeCurrencySchema = z.object({
   symbol: z.string(),
   icon: z.string().default(''),
   name: z.string(),
   decimals: z.number(),
-  usd: v37RateSchema
+  usd: RateSchema
 })
 
-const latest = v37
-
-export { v37, latest }
-export type NativeCurrency = z.infer<typeof latest>
+export type NativeCurrency = z.infer<typeof NativeCurrencySchema>

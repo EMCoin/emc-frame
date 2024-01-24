@@ -1,8 +1,7 @@
 import { utils } from 'ethers'
 import { hexToInt } from '.'
 
-import type { Chain } from '../../main/store/state/types'
-import type { HexString } from '../../main/store/state/types/common'
+import type { Chain } from '../../main/store/state'
 
 export function isNetworkConnected(network: Chain) {
   return (
@@ -16,15 +15,11 @@ export function isNetworkEnabled(network: Chain) {
   return network.on
 }
 
-export function chainUsesEth(chainId: number) {
-  return [1, 3, 4, 5, 10, 42, 42161, 11155111].includes(chainId)
-}
-
 export function chainUsesOptimismFees(chainId: number) {
   return [10, 420, 8453, 84531, 7777777].includes(chainId)
 }
 
-export function calculateOptimismL1DataFee(serializedTx: string, baseFeeL1: HexString) {
+export function calculateOptimismL1DataFee(serializedTx: string, baseFeeL1: string) {
   const FIXED_OVERHEAD = 188
   const DYNAMIC_OVERHEAD = 0.684
 

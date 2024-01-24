@@ -24,11 +24,7 @@ import {
   updateAccount as updateAccountAction,
   navClearReq as clearNavRequestAction,
   navClearSigner as clearNavSignerAction,
-  updateTypedDataRequest as updateTypedDataAction,
-  removeNativeCurrencyRate as removeNativeCurrencyRateAction,
-  removeRate as removeRateAction,
-  setInventoryAssets as setInventoryAssetsAction,
-  updateAssetPreferences as updateAssetPreferencesAction
+  updateTypedDataRequest as updateTypedDataAction
 } from '../../../../main/store/actions'
 import { toTokenId } from '../../../../resources/domain/balance'
 
@@ -291,12 +287,12 @@ describe('#setBalances', () => {
 
     expect(balances).toEqual([
       {
-        ...testTokens.zrx,
-        balance: addHexPrefix(new BigNumber(7983.2332).toString(16))
-      },
-      {
         ...testTokens.badger,
         balance: addHexPrefix(new BigNumber(30.5).toString(16))
+      },
+      {
+        ...testTokens.zrx,
+        balance: addHexPrefix(new BigNumber(7983.2332).toString(16))
       }
     ])
   })
@@ -427,11 +423,7 @@ describe('#addCustomTokens', () => {
           chainId: testTokens.badger.chainId,
           symbol: 'BDG',
           name: 'Old Badger',
-          media: {
-            source: 'abc',
-            format: 'image',
-            cdn: {}
-          }
+          logoURI: 'http://logo.io'
         }
       ]
     }
@@ -450,11 +442,7 @@ describe('#addCustomTokens', () => {
         chainId: testTokens.badger.chainId,
         symbol: 'BADGER',
         name: 'Badger Token',
-        media: {
-          source: 'abc',
-          format: 'image',
-          cdn: {}
-        }
+        logoURI: 'http://logo.io'
       }
     ])
   })
@@ -1417,216 +1405,5 @@ describe('#updateTypedDataRequest', () => {
     })
 
     expect(requests[request].typedMessage.data.oldAttribute).toBeTruthy()
-  })
-})
-
-describe('#removeRate', () => {
-  let rates
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('main.rates')
-    rates = update(rates)
-  }
-  const removeRate = (address) => removeRateAction(updaterFn, address)
-
-  beforeEach(() => {
-    rates = {
-      '0x4a220e6096b25eadb88358cb44068a3248254675': {
-        usd: {
-          price: 127.37,
-          change24hr: -0.42878216754439036
-        }
-      },
-      '0x6b175474e89094c44da98b954eedeac495271d0f': {
-        usd: {
-          price: 1,
-          change24hr: 0.03304020502546278
-        }
-      }
-    }
-  })
-
-  it('should remove the rate corresponding to the address', () => {
-    removeRate('0x4a220e6096b25eadb88358cb44068a3248254675')
-    expect(rates['0x4a220e6096b25eadb88358cb44068a3248254675']).toBeUndefined()
-  })
-
-  it('should not remove any other rates', () => {
-    removeRate('0x4a220e6096b25eadb88358cb44068a3248254675')
-    expect(rates['0x6b175474e89094c44da98b954eedeac495271d0f']).toBeDefined()
-  })
-})
-
-describe('#removeNativeCurrencyRate', () => {
-  let networksMeta
-
-  const updaterFn = (node, netType, netId, _, update) => {
-    expect(node).toBe('main.networksMeta')
-    expect(netType).toBe('ethereum')
-    expect(netId).toBe(1)
-    networksMeta[netType][netId].nativeCurrency = update(networksMeta[netType][netId].nativeCurrency)
-  }
-  const removeNativeCurrencyRate = (netType, chainId) =>
-    removeNativeCurrencyRateAction(updaterFn, netType, chainId)
-
-  beforeEach(() => {
-    networksMeta = {
-      ethereum: {
-        1: {
-          nativeCurrency: {
-            symbol: 'ETH',
-            usd: {
-              price: 1657.52,
-              change24hr: 1.0143377406589682
-            },
-            decimals: 18
-          }
-        },
-        2: {
-          nativeCurrency: {
-            symbol: 'BOGUS',
-            usd: {
-              price: 1657.52,
-              change24hr: 1.0143377406589682
-            }
-          }
-        }
-      }
-    }
-  })
-
-  it('should remove the usd rate for a given network', () => {
-    removeNativeCurrencyRate('ethereum', 1)
-    expect(networksMeta.ethereum[1].nativeCurrency.usd).toBeUndefined()
-  })
-
-  it('should not remove any other metadata from this network', () => {
-    const {
-      nativeCurrency: { usd, ...nativeCurrency }
-    } = networksMeta.ethereum[1]
-
-    removeNativeCurrencyRate('ethereum', 1)
-    expect(networksMeta.ethereum[1].nativeCurrency).toStrictEqual(nativeCurrency)
-  })
-
-  it('should not remove the usd rate any other networks', () => {
-    removeNativeCurrencyRate('ethereum', 1)
-    expect(networksMeta.ethereum[2].nativeCurrency.usd).toBeDefined()
-  })
-})
-
-describe('#setInventoryAssets', () => {
-  let inventory
-  const account = '0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5'
-  const collection = '0x388C818CA8B9251b393131C08a736A67ccB19297'
-
-  const updaterFn = (node, address, updatedCollection, _, update) => {
-    expect(node).toBe('main.inventory')
-    expect(address).toBe(account)
-    expect(updatedCollection).toBe(collection)
-    inventory[address][updatedCollection] = update(inventory[address][updatedCollection])
-  }
-
-  const setInventoryAssets = (address, collection, items) =>
-    setInventoryAssetsAction(updaterFn, address, collection, items)
-
-  beforeEach(() => {
-    inventory = {
-      [account]: {
-        [collection]: []
-      }
-    }
-  })
-
-  it('should add new items to the collection', () => {
-    const item = {
-      name: 'my cool nft',
-      tokenId: '12'
-    }
-
-    setInventoryAssets(account, collection, [item])
-
-    expect(inventory[account][collection]).toStrictEqual([item])
-  })
-
-  it('should update existing items in the collection', () => {
-    const existingItem = {
-      name: 'my cool nft',
-      tokenId: '12'
-    }
-
-    const acquiredItem = {
-      name: 'your just ok nft',
-      tokenId: '34'
-    }
-
-    inventory[account][collection] = [existingItem]
-
-    setInventoryAssets(account, collection, [existingItem, acquiredItem])
-
-    expect(inventory[account][collection]).toStrictEqual([existingItem, acquiredItem])
-  })
-})
-
-describe('#updateAssetPreferences', () => {
-  let assetPreferences
-
-  const collectionChainId = 1
-  const collectionAddress = '0xabcd'
-  const collectionId = `${collectionChainId}:${collectionAddress}`
-
-  beforeEach(() => {
-    assetPreferences = {
-      collections: {},
-      tokens: {}
-    }
-  })
-
-  const preferenceTypes = ['collections', 'tokens']
-  preferenceTypes.forEach((preferenceType) => {
-    const updaterFn = (node, assetType, update) => {
-      expect(node).toBe('main.assetPreferences')
-      assetPreferences[assetType] = update(assetPreferences[assetType])
-    }
-
-    const updatePreferences = (chainId, address, preferences) =>
-      updateAssetPreferencesAction(updaterFn, preferenceType, chainId, address, preferences)
-
-    it(`should add new ${preferenceType} preferences when the entry has no previous preferences`, () => {
-      const preferences = {
-        hidden: false
-      }
-
-      updatePreferences(collectionChainId, collectionAddress, preferences)
-
-      expect(assetPreferences[preferenceType][collectionId]).toStrictEqual(preferences)
-    })
-
-    it(`should correctly update existing ${preferenceType} preferences when new ones are provided`, () => {
-      assetPreferences[preferenceType][collectionId] = { hidden: true }
-
-      const preferences = {
-        hidden: false
-      }
-
-      updatePreferences(collectionChainId, collectionAddress, preferences)
-
-      expect(assetPreferences[preferenceType][collectionId]).toStrictEqual(preferences)
-    })
-
-    it(`should maintain unmodified ${preferenceType} preferences when new preferences are provided`, () => {
-      assetPreferences[preferenceType][collectionId] = { favourite: true }
-
-      const preferences = {
-        hidden: false
-      }
-
-      updatePreferences(collectionChainId, collectionAddress, preferences)
-
-      expect(assetPreferences[preferenceType][collectionId]).toStrictEqual({
-        ...preferences,
-        favourite: true
-      })
-    })
   })
 })

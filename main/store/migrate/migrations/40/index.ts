@@ -1,70 +1,87 @@
-import { z } from 'zod'
+import log from 'electron-log'
 
-import { v39 as LegacyTokensSchema, v40 as NewTokensSchema } from '../../../state/types/tokens'
+import { v38StateSchema } from '../38/schema'
 
-const InputSchema = z
-  .object({
-    main: z
-      .object({
-        tokens: LegacyTokensSchema
-      })
-      .passthrough()
-  })
-  .passthrough()
+function baseMainnet() {
+  const chain = {
+    id: 8453,
+    type: 'ethereum',
+    layer: 'rollup',
+    isTestnet: false,
+    name: 'Base',
+    explorer: 'https://basescan.org',
+    gas: {
+      price: {
+        selected: 'standard',
+        levels: { slow: '', standard: '', fast: '', asap: '', custom: '' }
+      }
+    },
+    connection: {
+      primary: {
+        on: true,
+        current: 'pylon',
+        status: 'loading',
+        connected: false,
+        type: '',
+        network: '',
+        custom: ''
+      },
+      secondary: {
+        on: false,
+        current: 'custom',
+        status: 'loading',
+        connected: false,
+        type: '',
+        network: '',
+        custom: ''
+      }
+    },
+    on: false
+  } as const
 
-const OutputSchema = z.object({
-  main: z.object({
-    tokens: NewTokensSchema
-  })
-})
+  const metadata = {
+    blockHeight: 0,
+    gas: {
+      fees: {},
+      price: {
+        selected: 'standard',
+        levels: { slow: '', standard: '', fast: '', asap: '', custom: '' }
+      }
+    },
+    nativeCurrency: {
+      symbol: 'ETH',
+      usd: {
+        price: 0,
+        change24hr: 0
+      },
+      icon: '',
+      name: 'Ether',
+      decimals: 18
+    },
+    icon: 'https://frame.nyc3.cdn.digitaloceanspaces.com/baseiconcolor.png',
+    primaryColor: 'accent8' // Base
+  } as const
 
-type v39Token = z.infer<typeof LegacyTokensSchema.shape.custom.element>
-type v40Token = z.infer<typeof NewTokensSchema.shape.custom.element>
-type v39TokenBalance = z.infer<typeof LegacyTokensSchema.shape.known.valueSchema.element>
-type v40TokenBalance = z.infer<typeof NewTokensSchema.shape.known.valueSchema.element>
-type OutputState = z.infer<typeof OutputSchema>
-
-interface WithLogoURI {
-  logoURI?: string
+  return { chain, metadata }
 }
-
-const migrateToken = <T extends WithLogoURI>({ logoURI = '', ...token }: T) => ({
-  ...token,
-  media: {
-    source: logoURI,
-    format: 'image' as const,
-    cdn: {}
-  },
-  hideByDefault: false
-})
-
-const migrateKnownTokens = (knownTokens: Record<string, v39TokenBalance[]>) => {
-  const tokens: Record<string, v40TokenBalance[]> = {}
-  for (const address in knownTokens) {
-    tokens[address] = (knownTokens[address] || []).map(migrateToken)
-  }
-
-  return tokens
-}
-
-const migrateCustomTokens = (customTokens: v39Token[]): v40Token[] => customTokens.map(migrateToken)
 
 const migrate = (initial: unknown) => {
-  const state = InputSchema.parse(initial)
-  const { known: knownTokens, custom: customTokens } = state.main.tokens
+  try {
+    const state = v38StateSchema.parse(initial)
+    const usingBase = '8453' in state.main.networks.ethereum
 
-  const updatedState: OutputState = {
-    ...state,
-    main: {
-      ...state.main,
-      tokens: {
-        known: migrateKnownTokens(knownTokens),
-        custom: migrateCustomTokens(customTokens)
-      }
+    if (!usingBase) {
+      const { chain, metadata } = baseMainnet()
+      state.main.networks.ethereum[8453] = chain
+      state.main.networksMeta.ethereum[8453] = metadata
     }
+
+    return state
+  } catch (e) {
+    log.error('Migration 40: could not parse state', e)
   }
 
-  return updatedState
+  return initial
 }
 
 export default {

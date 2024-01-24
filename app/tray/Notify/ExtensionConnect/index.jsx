@@ -77,7 +77,7 @@ const ExtensionConnectNotification = ({ id, browser, onClose }) => {
                     <div style={{ paddingBottom: '24px' }}>
                       {`A new ${browserName} extension is attempting to connect as "Frame Companion"`}{' '}
                     </div>
-                    <div>{`If you did not recently add Frame Companion please verify the extension origin below`}</div>
+                    <div>{`If you did not recently add Emc-Frame Companion please verify the extension origin below`}</div>
                   </NotifyMain>
                 </ClusterValue>
               </ClusterRow>

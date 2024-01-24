@@ -3,44 +3,9 @@ import Restore from 'react-restore'
 import link from '../../../../../resources/link'
 import svg from '../../../../../resources/svg'
 import { matchFilter } from '../../../../../resources/utils'
-import styled, { keyframes } from 'styled-components'
 
 import { Cluster, ClusterRow, ClusterValue } from '../../../../../resources/Components/Cluster'
 
-import CollectionList from '../CollectionList'
-
-const LoadingWave = keyframes`
-  0% {
-    transform: translateX(0);
-  }
-  100%{
-    transform: translateX(74px);
-  }
-`
-const BalanceLoading = styled.div`
-  position: relative;
-  height: 24px;
-  width: 90px;
-  display: flex;
-  overflow: hidden;
-  opacity: 1;
-  padding: 1px 0px;
-  border-radius: 12px;
-  background: var(--ghostZ);
-  border: 6px solid var(--ghostZ);
-  color: var(--mint);
-  box-sizing: border-box;
-  margin: 0px 0px 6px 0px;
-
-  svg {
-    width: 300%;
-    position: relative;
-    left: -100%;
-    stroke-width: 20px;
-    animation: ${LoadingWave} 3.4s linear infinite;
-    will-change: transform;
-  }
-`
 class Inventory extends React.Component {
   constructor(...args) {
     super(...args)
@@ -63,8 +28,8 @@ class Inventory extends React.Component {
   }
 
   isFilterMatch(collection) {
-    const { filter = '', inventory } = this.props
-    const c = inventory[collection]
+    const { filter = '' } = this.props
+    const c = this.store('main.inventory', this.props.account, collection)
     if (!c) return false
     const collectionName = c.meta && c.meta.name
     const collectionItems = c.items || {}
@@ -75,58 +40,77 @@ class Inventory extends React.Component {
     return matchFilter(filter, [collectionName, ...itemNames])
   }
 
-  filterCollections() {
-    const { inventory, hiddenCollections } = this.props
+  displayCollections() {
+    const inventory = this.store('main.inventory', this.props.account)
     const collections = Object.keys(inventory || {})
-
     return collections
-      .filter((k) => {
-        const c = inventory[k]
-        if (!c || !c.meta) return false
-        const collectionId = `${c.meta.chainId}:${k}`
-        const isHidden = hiddenCollections.has(collectionId)
-        return !isHidden
-      })
       .sort((a, b) => {
-        const assetsLengthA = inventory[a].meta.tokens.length
-        const assetsLengthB = inventory[b].meta.tokens.length
+        const assetsLengthA = Object.keys(inventory[a].items).length
+        const assetsLengthB = Object.keys(inventory[b].items).length
         if (assetsLengthA > assetsLengthB) return -1
         if (assetsLengthA < assetsLengthB) return 1
         return 0
       })
       .filter((c) => this.isFilterMatch(c))
+      .slice(0, 6)
+  }
+
+  renderInventoryList() {
+    const inventory = this.store('main.inventory', this.props.account)
+    const displayCollections = this.displayCollections()
+    return displayCollections.map((k) => {
+      return (
+        <ClusterRow key={k}>
+          <ClusterValue
+            onClick={() => {
+              const crumb = {
+                view: 'expandedModule',
+                data: {
+                  id: this.props.moduleId,
+                  account: this.props.account,
+                  currentCollection: k
+                }
+              }
+              link.send('nav:forward', 'panel', crumb)
+            }}
+          >
+            <div key={k} className='inventoryCollection'>
+              <div className='inventoryCollectionTop'>
+                <div className='inventoryCollectionName'>{inventory[k].meta.name}</div>
+                <div className='inventoryCollectionCount'>{Object.keys(inventory[k].items).length}</div>
+                <div className='inventoryCollectionLine' />
+              </div>
+            </div>
+          </ClusterValue>
+        </ClusterRow>
+      )
+    })
   }
 
   render() {
-    const { inventory } = this.props
-    const collections = this.filterCollections()
-    const displayedCollections = collections.slice(0, 5)
-    const moreCollections = collections.length - displayedCollections.length
-
+    const inventory = this.store('main.inventory', this.props.account)
+    const collections = Object.keys(inventory || {})
+    const displayCollections = this.displayCollections()
+    const moreCollections = collections.length - displayCollections.length
     return (
-      <div ref={this.moduleRef} className='balancesBlock' style={{}}>
+      <div ref={this.moduleRef} className='balancesBlock'>
         <div className='moduleHeader'>
           <span>{svg.inventory(12)}</span>
           <span>{'Inventory'}</span>
         </div>
         <Cluster>
           {collections.length ? (
-            <CollectionList {...this.props} collections={displayedCollections} />
+            this.renderInventoryList()
           ) : inventory ? (
             <ClusterRow>
               <ClusterValue>
-                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                  <div className='inventoryNotFound'>No Items Found</div>
-                </div>
+                <div className='inventoryNotFound'>No Items Found</div>
               </ClusterValue>
             </ClusterRow>
           ) : (
             <ClusterRow>
               <ClusterValue>
-                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                  <BalanceLoading>{svg.sine()}</BalanceLoading>
-                  <div className='inventoryNotFound'>Loading Items</div>
-                </div>
+                <div className='inventoryNotFound'>Loading Items..</div>
               </ClusterValue>
             </ClusterRow>
           )}

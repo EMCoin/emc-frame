@@ -2,16 +2,16 @@ import React, { useEffect } from 'react'
 
 import { Slide, SlideBody, SlideItem } from '../../styled'
 
-const Intro = ({ setTitle, setProceed }) => {
+const Intro = ({ setTitle, setProceed, version }) => {
   useEffect(() => {
-    setTitle(`Welcome to Frame Canary!`)
+    setTitle(`Welcome to Emc-Frame v${version}!`)
     setProceed({ action: 'next', text: "Let's go!" })
   }, [])
   return (
     <Slide>
       <SlideBody>
         <SlideItem>
-          <div>Frame is a web3 platform that creates a secure</div>
+          <div>Emc-Frame is a web3 platform that creates a secure</div>
           <div>system-wide interface to your chains and accounts.</div>
         </SlideItem>
         <SlideItem>

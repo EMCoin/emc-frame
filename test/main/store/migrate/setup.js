@@ -7,11 +7,11 @@ export const createState = (version = 0) => ({
     balances: {},
     mute: {},
     shortcuts: {},
-    tokens: { known: {}, custom: [] }
+    tokens: { known: {} }
   }
 })
 
-export const initChainState = (state, chainId, name = 'Mainnet') => {
-  state.main.networks.ethereum[chainId] = { id: chainId, type: 'ethereum', name }
+export const initChainState = (state, chainId) => {
+  state.main.networks.ethereum[chainId] = { id: chainId }
   state.main.networksMeta.ethereum[chainId] = { nativeCurrency: {} }
 }

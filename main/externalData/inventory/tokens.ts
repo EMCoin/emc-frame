@@ -5,18 +5,9 @@ import ethProvider from 'eth-provider'
 import nebulaApi from '../../nebula'
 import defaultTokenList from './default-tokens.json'
 
-import type { Token } from '../../store/state/types'
+import type { Token } from '../../store/state'
 
 const TOKENS_ENS_DOMAIN = 'tokens.frame.eth'
-
-type ListedToken = {
-  chainId: number
-  address: string
-  decimals: number
-  symbol: string
-  name: string
-  logoURI?: string
-}
 
 interface TokenSpec extends Token {
   extensions?: {
@@ -26,19 +17,6 @@ interface TokenSpec extends Token {
 
 function isBlacklisted(token: TokenSpec) {
   return token.extensions?.omit
-}
-
-function convertLogoToMedia(listedToken: ListedToken): TokenSpec {
-  const { logoURI, ...token } = listedToken
-  return {
-    ...token,
-    hideByDefault: false,
-    media: {
-      source: logoURI || '',
-      cdn: {},
-      format: !!logoURI ? 'image' : ''
-    }
-  }
 }
 
 export default class TokenLoader {
@@ -56,7 +34,7 @@ export default class TokenLoader {
     try {
       const updatedTokens = await this.fetchTokenList(timeout)
       log.info(`Fetched ${updatedTokens.length} tokens`)
-      this.tokens = updatedTokens.map(convertLogoToMedia)
+      this.tokens = updatedTokens
       log.info(`Updated token list to contain ${this.tokens.length} tokens`)
 
       this.nextLoad = setTimeout(() => this.loadTokenList(), 10 * 60_000)
@@ -70,7 +48,7 @@ export default class TokenLoader {
     log.verbose(`Fetching tokens from ${TOKENS_ENS_DOMAIN}`)
 
     let timeoutHandle: NodeJS.Timeout | undefined
-    const requestTimeout = new Promise<ListedToken[]>((resolve, reject) => {
+    const requestTimeout = new Promise<TokenSpec[]>((resolve, reject) => {
       timeoutHandle = setTimeout(() => {
         reject(`Timeout fetching token list from ${TOKENS_ENS_DOMAIN}`)
       }, timeout)

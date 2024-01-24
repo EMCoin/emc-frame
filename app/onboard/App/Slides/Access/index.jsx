@@ -52,21 +52,21 @@ const Access = ({ setTitle, setProceed, platform }) => {
             <div>Frame using the keyboard shortcut.</div>
           </SlideItem>
           <SlideItem>
-            <span>{'Dismiss Frame now using '}</span>
+            <span>{'Dismiss Emc-Frame now using '}</span>
             <Shortcut>{keyboardShortcut}</Shortcut>
           </SlideItem>
         </SlideBody>
       ) : !trayOpen ? (
         <SlideBody key={2}>
           <SlideItem>
-            <span>{'You can summon Frame the same way '}</span>
+            <span>{'You can summon Emc-Frame the same way '}</span>
             <Shortcut>{keyboardShortcut}</Shortcut>
           </SlideItem>
         </SlideBody>
       ) : (
         <SlideBody key={3}>
           <SlideItem>
-            <div>You can also set Frame to automatically hide</div>
+            <div>You can also set Emc-Frame to automatically hide</div>
             <div>when not in use, so it's out of the way</div>
             <div>but still easily accessible when you need it.</div>
           </SlideItem>

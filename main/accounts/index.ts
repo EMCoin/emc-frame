@@ -9,9 +9,9 @@ import store from '../store'
 import FrameAccount from './Account'
 import ExternalDataScanner, { DataScanner } from '../externalData'
 import Signer from '../signers/Signer'
-import { signerCompatibility as transactionCompatibility, SignerCompatibility } from '../transaction'
+import { signerCompatibility as transactionCompatibility, maxFee, SignerCompatibility } from '../transaction'
 
-import { weiIntToEthInt, hexToInt, minimumHex } from '../../resources/utils'
+import { weiIntToEthInt, hexToInt } from '../../resources/utils'
 import { accountPanelCrumb, signerPanelCrumb } from '../../resources/domain/nav'
 import { usesBaseFee, TransactionData, GasFeesSource } from '../../resources/domain/transaction'
 import { findUnavailableSigners, isSignerReady } from '../../resources/domain/signer'
@@ -28,14 +28,11 @@ import {
   PermitSignatureRequest
 } from './types'
 
+import type { Chain } from '../chains'
 import { ActionType } from '../transaction/actions'
 import { openBlockExplorer } from '../windows/window'
 import { ApprovalType } from '../../resources/constants'
 import { accountNS } from '../../resources/domain/account'
-import { getMaxTotalFee } from '../../resources/gas'
-
-import type { Chain } from '../chains'
-import type { Account, AccountMetadata, Gas } from '../store/state/types'
 
 function notify(title: string, body: string, action: (event: Electron.Event) => void) {
   const notification = new Notification({ title, body })
@@ -106,7 +103,7 @@ export class Accounts extends EventEmitter {
 
       const created = 'new:' + Date.now()
       const accountMetaId = uuidv5(address, accountNS)
-      const accountMeta = (store('main.accountsMeta', accountMetaId) || { name }) as AccountMetadata
+      const accountMeta = store('main.accountsMeta', accountMetaId) || { name }
       this.accounts[address] = new FrameAccount(
         { address, name: accountMeta.name, created, options, active: false },
         this
@@ -327,7 +324,7 @@ export class Accounts extends EventEmitter {
 
                   // If Frame is hidden, trigger native notification
                   notify('Transaction Successful', body, () => {
-                    openBlockExplorer({ type: 'tx', chain: targetChain, hash })
+                    openBlockExplorer(targetChain, hash)
                   })
                 }
                 const blockHeight = parseInt(res.result, 16)
@@ -516,6 +513,8 @@ export class Accounts extends EventEmitter {
       previouslyActiveAccount.update()
     }
 
+    store.setAccount(summary)
+
     if (currentAccount.status === 'ok')
       this.verifyAddress(false, (err, verified) => {
         if (!err && !verified) {
@@ -548,21 +547,15 @@ export class Accounts extends EventEmitter {
         try {
           const tx = req.data
           const chain = { type: 'ethereum', id: parseInt(tx.chainId, 16) }
-          const gas = store('main.networksMeta', chain.type, chain.id, 'gas') as Gas
+          const gas = store('main.networksMeta', chain.type, chain.id, 'gas')
 
           if (usesBaseFee(tx)) {
-            const { maxBaseFeePerGas, maxPriorityFeePerGas } = gas.fees || {}
-
-            if (maxPriorityFeePerGas && maxBaseFeePerGas) {
-              this.setPriorityFee(maxPriorityFeePerGas, id, false)
-              this.setBaseFee(maxBaseFeePerGas, id, false)
-            }
+            const { maxBaseFeePerGas, maxPriorityFeePerGas } = gas.price.fees
+            this.setPriorityFee(maxPriorityFeePerGas, id, false)
+            this.setBaseFee(maxBaseFeePerGas, id, false)
           } else {
             const gasPrice = gas.price.levels.fast
-
-            if (gasPrice) {
-              this.setGasPrice(gasPrice, id, false)
-            }
+            this.setGasPrice(gasPrice, id, false)
           }
         } catch (e) {
           log.error('Could not update gas fees for transaction', e)
@@ -575,7 +568,7 @@ export class Accounts extends EventEmitter {
     const summary = { id: '', status: '' }
     if (cb) cb(null, summary)
 
-    // store.unsetAccount()
+    store.unsetAccount()
 
     // setTimeout(() => { // Clear signer requests when unset
     //   if (s) {
@@ -904,7 +897,7 @@ export class Accounts extends EventEmitter {
 
     const currentAccount = this.current()
     if (currentAccount && currentAccount.address === address) {
-      // store.unsetAccount()
+      store.unsetAccount()
 
       const defaultAccount = (Object.values(this.accounts).filter((a) => a.address !== address) || [])[0]
       if (defaultAccount) {
@@ -922,6 +915,13 @@ export class Accounts extends EventEmitter {
 
   private invalidValue(fee: string) {
     return !fee || isNaN(parseInt(fee, 16)) || parseInt(fee, 16) < 0
+  }
+
+  private limitedHexValue(hexValue: string, min: number, max: number) {
+    const value = parseInt(hexValue, 16)
+    if (value < min) return intToHex(min)
+    if (value > max) return intToHex(max)
+    return hexValue
   }
 
   private txFeeUpdate(inputValue: string, handlerId: string, userUpdate: boolean) {
@@ -999,7 +999,7 @@ export class Accounts extends EventEmitter {
     )
 
     // New value
-    const newBaseFee = parseInt(minimumHex(baseFee, 0), 16)
+    const newBaseFee = parseInt(this.limitedHexValue(baseFee, 0, 9999 * 1e9), 16)
 
     // No change
     if (newBaseFee === currentBaseFee) return
@@ -1009,7 +1009,7 @@ export class Accounts extends EventEmitter {
 
     // New max fee per gas
     const newMaxFeePerGas = newBaseFee + maxPriorityFeePerGas
-    const maxTotalFee = getMaxTotalFee(tx)
+    const maxTotalFee = maxFee(tx)
 
     // Limit max fee
     if (newMaxFeePerGas * gasLimit > maxTotalFee) {
@@ -1036,7 +1036,7 @@ export class Accounts extends EventEmitter {
     )
 
     // New values
-    const newMaxPriorityFeePerGas = parseInt(minimumHex(priorityFee, 0), 16)
+    const newMaxPriorityFeePerGas = parseInt(this.limitedHexValue(priorityFee, 0, 9999 * 1e9), 16)
 
     // No change
     if (newMaxPriorityFeePerGas === maxPriorityFeePerGas) return
@@ -1045,7 +1045,7 @@ export class Accounts extends EventEmitter {
 
     // New max fee per gas
     const newMaxFeePerGas = currentBaseFee + newMaxPriorityFeePerGas
-    const maxTotalFee = getMaxTotalFee(tx)
+    const maxTotalFee = maxFee(tx)
 
     // Limit max fee
     if (newMaxFeePerGas * gasLimit > maxTotalFee) {
@@ -1072,14 +1072,14 @@ export class Accounts extends EventEmitter {
     const { currentAccount, gasLimit, gasPrice, txType } = this.txFeeUpdate(price, handlerId, userUpdate)
 
     // New values
-    const newGasPrice = parseInt(minimumHex(price, 0), 16)
+    const newGasPrice = parseInt(this.limitedHexValue(price, 0, 9999 * 1e9), 16)
 
     // No change
     if (newGasPrice === gasPrice) return
 
     const txRequest = this.getTransactionRequest(currentAccount, handlerId)
     const tx = txRequest.data
-    const maxTotalFee = getMaxTotalFee(tx)
+    const maxTotalFee = maxFee(tx)
 
     // Limit max fee
     if (newGasPrice * gasLimit > maxTotalFee) {
@@ -1101,11 +1101,11 @@ export class Accounts extends EventEmitter {
     const { currentAccount, maxFeePerGas, gasPrice, txType } = this.txFeeUpdate(limit, handlerId, userUpdate)
 
     // New values
-    const newGasLimit = parseInt(minimumHex(limit, 0), 16)
+    const newGasLimit = parseInt(this.limitedHexValue(limit, 0, 12.5e6), 16)
 
     const txRequest = this.getTransactionRequest(currentAccount, handlerId)
     const tx = txRequest.data
-    const maxTotalFee = getMaxTotalFee(tx)
+    const maxTotalFee = maxFee(tx)
 
     const fee = txType === '0x2' ? maxFeePerGas : gasPrice
     if (newGasLimit * fee > maxTotalFee) {

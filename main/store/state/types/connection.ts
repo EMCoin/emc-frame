@@ -10,26 +10,14 @@ const statusValues = [
   'chain mismatch'
 ] as const
 
-const v37 = z.object({
-  on: z.boolean().default(false),
-  connected: z.boolean().default(false),
-  current: z.enum(['local', 'custom', 'infura', 'alchemy', 'poa']).default('custom').catch('custom'),
-  status: z.enum(statusValues).default('off').catch('off'),
+const presetValues = ['local', 'custom', 'pylon'] as const
+
+export const ConnectionSchema = z.object({
+  on: z.boolean(),
+  connected: z.boolean(),
+  current: z.enum(presetValues),
+  status: z.enum(statusValues),
   custom: z.string().default('')
 })
 
-const v38 = v37.extend({
-  current: z.enum(['local', 'custom', 'pylon', 'poa']).default('custom')
-})
-
-const v39 = v38.extend({
-  current: z.enum(['local', 'custom', 'pylon']).default('custom')
-})
-
-const latestSchema = v39
-
-// all connections should start disconnected by default
-const latest = latestSchema.transform((connection) => ({ ...connection, connected: false }))
-
-export { v37, v38, v39, latest }
-export type Connection = z.infer<typeof latest>
+export type Connection = z.infer<typeof ConnectionSchema>

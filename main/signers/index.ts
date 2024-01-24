@@ -14,8 +14,6 @@ import HotSigner from './hot/HotSigner'
 
 import store from '../store'
 
-export type { Signers }
-
 const registeredAdapters = [new LedgerAdapter(), new TrezorAdapter(), new LatticeAdapter()]
 
 interface AdapterSpec {
@@ -173,7 +171,7 @@ class Signers extends EventEmitter {
     hot.createFromKeystore(this, keystore, keystorePassword, password, cb)
   }
 
-  addPrivateKey(id: string, privateKey: string, password: string, cb: ErrorOnlyCallback) {
+  addPrivateKey(id: string, privateKey: string, password: string, cb: Callback<Signer>) {
     // Get signer
     const signer = this.get(id)
     // Make sure signer is of type 'ring'
@@ -182,11 +180,10 @@ class Signers extends EventEmitter {
     }
 
     // Add private key
-    const ringSigner = signer as RingSigner
-    ringSigner.addPrivateKey(privateKey, password, cb)
+    ;(signer as RingSigner).addPrivateKey(privateKey, password, cb)
   }
 
-  removePrivateKey(id: string, index: number, password: string, cb: ErrorOnlyCallback) {
+  removePrivateKey(id: string, index: number, password: string, cb: Callback<Signer>) {
     // Get signer
     const signer = this.get(id)
 
@@ -195,8 +192,7 @@ class Signers extends EventEmitter {
     }
 
     // Add keystore
-    const ringSigner = signer as RingSigner
-    ringSigner.removePrivateKey(index, password, cb)
+    ;(signer as RingSigner).removePrivateKey(index, password, cb)
   }
 
   addKeystore(
@@ -204,7 +200,7 @@ class Signers extends EventEmitter {
     keystore: Keystore,
     keystorePassword: string,
     password: string,
-    cb: ErrorOnlyCallback
+    cb: Callback<Signer>
   ) {
     // Get signer
     const signer = this.get(id)
@@ -213,27 +209,24 @@ class Signers extends EventEmitter {
       return cb(new Error('Keystores can only be used with ring signers'), undefined)
     }
 
-    const ringSigner = signer as RingSigner
-    ringSigner.addKeystore(keystore, keystorePassword, password, cb)
+    ;(signer as RingSigner).addKeystore(keystore, keystorePassword, password, cb)
   }
 
-  lock(id: string, cb: ErrorOnlyCallback) {
+  lock(id: string, cb: Callback<Signer>) {
     const signer = this.get(id)
 
-    // only hot signers have a lock method
-    if (signer && (signer as any).lock) {
-      const hotSigner = signer as HotSigner
-      hotSigner.lock(cb)
+    // @ts-ignore
+    if (signer && signer.lock) {
+      ;(signer as HotSigner).lock(cb)
     }
   }
 
-  unlock(id: string, password: string, cb: ErrorOnlyCallback) {
+  unlock(id: string, password: string, cb: Callback<Signer>) {
     const signer = this.signers[id]
 
-    // only hot signers have an unlock method
-    if (signer && (signer as any).unlock) {
-      const hotSigner = signer as HotSigner
-      hotSigner.unlock(password, cb)
+    // @ts-ignore
+    if (signer && signer.unlock) {
+      ;(signer as HotSigner).unlock(password, cb)
     } else {
       log.error('Signer not unlockable via password, no unlock method')
     }

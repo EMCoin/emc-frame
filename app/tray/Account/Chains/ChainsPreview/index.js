@@ -9,7 +9,7 @@ import { Cluster } from '../../../../../resources/Components/Cluster'
 class ChainsPreview extends React.Component {
   constructor(...args) {
     super(...args)
-    this.moduleRef = React.createRef()
+    this.moduleRef = React.createRef()    
     if (!this.props.expanded) {
       this.resizeObserver = new ResizeObserver(() => {
         if (this.moduleRef && this.moduleRef.current) {
@@ -25,11 +25,12 @@ class ChainsPreview extends React.Component {
     }
   }
 
-  setIndex(newIndex) {
+  setIndex(newIndex) {    
     if (this.state.lockedOn) return
     const existingChains = Object.keys(this.store('main.networks.ethereum') || []).filter((chain) => {
       return chain && this.store('main.networks.ethereum', chain, 'on')
-    })
+    })    
+    
     if (newIndex > existingChains.length - 1) {
       this.setState({ index: 0 })
     } else if (newIndex < 0) {
@@ -52,7 +53,7 @@ class ChainsPreview extends React.Component {
     const existingChains = Object.keys(this.store('main.networks.ethereum') || []).filter((chain) => {
       return chain && this.store('main.networks.ethereum', chain, 'on')
     })
-    const currentChainId = existingChains[this.state.index] || '1'
+    const currentChainId = existingChains[this.state.index] || '1' // micky
     const currentChain = this.store('main.networks.ethereum', currentChainId)
     const currentChainMeta = this.store('main.networksMeta.ethereum', currentChainId)
     if (!currentChain || !currentChainMeta) return null

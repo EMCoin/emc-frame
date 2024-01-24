@@ -19,7 +19,7 @@ class Notify extends React.Component {
           <div className='notifyFrameIcon'>
             <img src={frameIcon} />
           </div>
-          <div className='notifyTitle'>Welcome to Frame!</div>
+          <div className='notifyTitle'>Welcome to Emc-Frame!</div>
           <div className='notifySubtitle'>System-wide web3</div>
           <div className='notifyBody'>
             <div className='notifyBodyLine'>
@@ -73,7 +73,7 @@ class Notify extends React.Component {
                   >
                     our license
                   </span>
-                  <span>and use Frame at your own risk</span>
+                  <span>and use Emc-Frame at your own risk</span>
                 </div>
                 <div className='notifySection'>
                   <span>Please give us your feedback! </span>
@@ -354,7 +354,7 @@ class Notify extends React.Component {
           </div>
           <div className='notifyBody'>
             <div className='notifyBodyLine'>
-              Frame hot signers are in alpha! Do not use them with high value accounts and verify your backups
+              Emc-Frame hot signers are in alpha! Do not use them with high value accounts and verify your backups
               are valid. Only proceed if you understand and accept these risks.
             </div>
           </div>
@@ -390,7 +390,7 @@ class Notify extends React.Component {
           </div>
           <div className='notifyBody'>
             <div className='notifyBodyLine'>
-              The unlocked hot signer did not match the address shown in Frame and has been relocked.
+              The unlocked hot signer did not match the address shown in Emc-Frame and has been relocked.
             </div>
           </div>
           <div className='notifyInput'>
@@ -474,11 +474,7 @@ class Notify extends React.Component {
             <div
               className='notifyInputOption notifyInputProceed'
               onMouseDown={() => {
-                link.send('tray:openExplorer', {
-                  type: 'tx',
-                  chain,
-                  hash
-                })
+                link.send('tray:openExplorer', chain, hash)
                 this.store.notify()
               }}
             >

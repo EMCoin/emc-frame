@@ -4,7 +4,6 @@ import BigNumber from 'bignumber.js'
 
 import link from '../../../../../../resources/link'
 import { usesBaseFee } from '../../../../../../resources/domain/transaction'
-import { getMaxTotalFee } from '../../../../../../resources/gas'
 
 const numberFormat = { groupSeparator: '', decimalSeparator: '.' }
 
@@ -28,6 +27,12 @@ function bnToHex(bn) {
   return `0x${bn.toString(16)}`
 }
 
+function limitRange(bn, min = 0, max = 9999e9) {
+  if (bn.gt(max)) return BigNumber(max)
+  if (bn.lt(min)) return BigNumber(min)
+  return bn
+}
+
 function formatForInput(num, decimals, useWei = false) {
   if (!decimals) {
     return num.toString()
@@ -35,8 +40,27 @@ function formatForInput(num, decimals, useWei = false) {
   return useWei ? toDisplayFromWei(BigNumber(num)) : toDisplayFromGwei(BigNumber(num))
 }
 
+function getMaxTotalFee(tx = { chainId: '' }) {
+  const chainId = parseInt(tx.chainId)
+
+  // for ETH-based chains, the max fee should be 2 ETH
+  if ([1, 3, 4, 5, 6, 10, 42, 61, 62, 63, 69, 8453, 42161, 421611, 7777777].includes(chainId)) {
+    return 2 * 1e18
+  }
+
+  // for Fantom, the max fee should be 250 FTM
+  if ([250, 4002].includes(chainId)) {
+    return 250 * 1e18
+  }
+
+  // for all other chains, default to 50 of the chain's currency
+  return 50 * 1e18
+}
+
 const totalFee = ({ gasPrice, baseFee, priorityFee, gasLimit }) =>
   gasPrice ? gasPrice.times(gasLimit) : baseFee.plus(priorityFee).times(gasLimit)
+
+const limitGasUnits = (bn) => limitRange(bn, 0, 12.5e6)
 
 let submitTimeout = null
 
@@ -204,7 +228,7 @@ class TxFeeOverlay extends Component {
         rawBaseFee = maxTotalFee.div(gasLimit).decimalPlaces(0, BigNumber.ROUND_FLOOR).minus(priorityFee)
       }
 
-      return BigNumber.maximum(0, rawBaseFee)
+      return limitRange(rawBaseFee)
     }
 
     const displayPriorityFee = toDisplayFromWei(priorityFee)
@@ -215,7 +239,7 @@ class TxFeeOverlay extends Component {
         rawPriorityFee = maxTotalFee.div(gasLimit).decimalPlaces(0, BigNumber.ROUND_FLOOR).minus(baseFee)
       }
 
-      return BigNumber.maximum(0, rawPriorityFee)
+      return limitRange(rawPriorityFee)
     }
 
     const displayGasPrice = toDisplayFromWei(gasPrice)
@@ -226,7 +250,7 @@ class TxFeeOverlay extends Component {
         rawGasPrice = maxTotalFee.div(gasLimit).decimalPlaces(0, BigNumber.ROUND_FLOOR)
       }
 
-      return BigNumber.maximum(0, rawGasPrice)
+      return limitRange(rawGasPrice)
     }
 
     const displayGasLimit = gasLimit.toString()
@@ -239,7 +263,7 @@ class TxFeeOverlay extends Component {
         rawGasLimit = maxTotalFee.div(baseFee.plus(priorityFee)).decimalPlaces(0, BigNumber.ROUND_FLOOR)
       }
 
-      return BigNumber.maximum(0, rawGasLimit)
+      return limitGasUnits(rawGasLimit)
     }
 
     const receiveValueHandler = (value, name) => {

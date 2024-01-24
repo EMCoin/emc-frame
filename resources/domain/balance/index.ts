@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js'
 
 import { NATIVE_CURRENCY } from '../../constants'
 
-import type { WithTokenId, Balance, Rate, TokenBalance } from '../../../main/store/state/types'
+import type { WithTokenId, Balance, Rate } from '../../../main/store/state'
 
 interface DisplayedBalance extends Balance {
   displayBalance: string
@@ -11,7 +11,6 @@ interface DisplayedBalance extends Balance {
   usdRate: Rate
   totalValue: BigNumber
   displayValue: string
-  decimals: number
 }
 
 const UNKNOWN = '?'
@@ -35,7 +34,7 @@ export function formatUsdRate(rate: BigNumber, decimals = 2) {
       }).format(Number(rate.toFixed(decimals, BigNumber.ROUND_FLOOR)))
 }
 
-export function createBalance(rawBalance: TokenBalance, quote?: Rate): DisplayedBalance {
+export function createBalance(rawBalance: Balance, quote?: Rate): DisplayedBalance {
   const balance = BigNumber(rawBalance.balance || 0).shiftedBy(-rawBalance.decimals)
   const usdRate = new BigNumber((quote && quote.price) || NaN)
   const change24hr = new BigNumber((quote && quote['change24hr']) || 0)

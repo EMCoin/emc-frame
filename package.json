@@ -1,6 +1,6 @@
 {
-  "name": "frame-canary",
-  "version": "0.7.0-canary.2",
+  "name": "emc-frame",
+  "version": "0.1.0",
   "description": "System-wide web3",
   "main": "compiled/main",
   "scripts": {
@@ -12,18 +12,16 @@
     "setup:scripts": "allow-scripts",
     "setup": "npm run setup:deps && husky install",
     "start": "npm run launch",
-    "bundle": "npm run bundle:bridge && npm run bundle:tray && npm run bundle:workspace && npm run bundle:workspaceDock && npm run bundle:workspaceRibbon && npm run bundle:onboard && npm run bundle:notify && npm run bundle:workspace:inject",
+    "bundle": "npm run bundle:bridge && npm run bundle:tray && npm run bundle:dash && npm run bundle:dapp && npm run bundle:onboard && npm run bundle:notify && npm run bundle:dapp:inject",
     "bundle:bridge": "parcel build resources/bridge/index.js --target bridge --public-url .",
     "bundle:tray": "parcel build app/tray/index.html --target tray --public-url .",
-    "bundle:workspace": "parcel build app/workspace/index.html --target workspace --public-url .",
-    "bundle:workspaceDock": "parcel build app/workspaceDock/index.html --target workspaceDock --public-url .",
-    "bundle:workspaceRibbon": "parcel build app/workspaceRibbon/index.html --target workspaceRibbon --public-url .",
+    "bundle:dash": "parcel build app/dash/index.html --target dash --public-url .",
+    "bundle:dapp": "parcel build app/dapp/index.html --target dapp --public-url .",
     "bundle:onboard": "parcel build app/onboard/index.html --target onboard --public-url .",
     "bundle:notify": "parcel build app/notify/index.html --target notify --public-url .",
-    "bundle:workspace:inject": "parcel build main/dapps/server/inject/index.js --target inject --public-url .",
+    "bundle:dapp:inject": "parcel build main/dapps/server/inject/index.js --target inject --public-url .",
     "serve": "npm run bundle:bridge && npm run dev:server & wait-on http://localhost:1234/tray/index.dev.html && npm run compile:watch",
     "dev": "node ./scripts/run-dev.mjs",
-    "dev:fullheight": "FULL_HEIGHT=true node ./scripts/run-dev.mjs",
     "dev:server": "node ./scripts/bundler.mjs",
     "inspect": "npm run bundle && npm run launch:inspect",
     "launch": "cross-env NODE_ENV=production electron ./compiled/main",
@@ -49,13 +47,13 @@
     "test:unit": "npm run test:unit:main && npm run test:unit:components && npm run test:unit:resources",
     "test:unit:main": "npm run test:exec -- --env=node ./test/main",
     "test:unit:resources": "npm run test:exec -- --env=node --roots=test/resources --testPathIgnorePatterns=\\(/Components/ /Hooks/\\)",
-    "test:unit:components": "npm run test:exec -- --env=jsdom --roots test/app test/resources/Hooks test/resources/Components --testTimeout=500 --testPathIgnorePatterns test/app/dash",
+    "test:unit:components": "npm run test:exec -- --env=jsdom --roots test/app test/resources/Hooks test/resources/Components --testTimeout=500",
     "test:e2e": "npm run test:exec -- --env=node --config ./jest.e2e.config.json ./test/e2e",
     "test:usbAdapters": "ELECTRON_RUN_AS_NODE=true ./node_modules/.bin/electron ./node_modules/jest/bin/jest.js ./test/main/signers/ledger/adapter.test.js --testPathIgnorePatterns=''",
     "local:rpc": "ganache-cli --account=\"0x2d6945dbddb8dcf5492004e6f720f8e971196ff61a61c4be99714ebc71e06c00,  5000000000000000000000\" --account=\"0xaef6a68a47c1628081e4e6df195f5f712ae4eb7da332a6d74dca06ae32a3e7ae,5000\""
   },
   "author": {
-    "name": "Frame Labs",
+    "name": "Emc-Frame Labs",
     "email": "jordan@frame.sh",
     "url": "https://frame.sh"
   },
@@ -66,7 +64,6 @@
     "@ethereumjs/util": "8.0.3",
     "@ethersproject/contracts": "5.7.0",
     "@ethersproject/providers": "5.7.2",
-    "@framelabs/pylon-api-client": "0.1.9",
     "@framelabs/pylon-client": "0.0.10",
     "@githubprimer/octicons-react": "8.5.0",
     "@ledgerhq/hw-app-eth": "6.33.6",
@@ -83,7 +80,6 @@
     "content-hash": "2.5.2",
     "cookie": "0.5.0",
     "cross-env": "7.0.3",
-    "d3": "7.8.5",
     "deep-equal": "2.2.0",
     "electron-log": "4.4.8",
     "electron-updater": "5.3.0",
@@ -136,11 +132,11 @@
     "@lavamoat/allow-scripts": "2.3.0",
     "@lavamoat/preinstall-always-fail": "1.0.0",
     "@ledgerhq/hw-transport-mocker": "6.27.15",
-    "@parcel/config-default": "2.9.2",
-    "@parcel/core": "2.9.2",
-    "@parcel/transformer-css": "2.9.2",
-    "@parcel/transformer-stylus": "2.9.2",
-    "@parcel/transformer-typescript-tsc": "2.9.2",
+    "@parcel/config-default": "2.8.3",
+    "@parcel/core": "2.8.3",
+    "@parcel/transformer-css": "2.8.3",
+    "@parcel/transformer-stylus": "2.8.3",
+    "@parcel/transformer-typescript-tsc": "2.8.3",
     "@sentry/types": "7.42.0",
     "@testing-library/dom": "9.0.1",
     "@testing-library/react": "14.0.0",
@@ -156,13 +152,12 @@
     "@types/tar-fs": "2.0.1",
     "@types/uuid": "9.0.1",
     "@types/ws": "8.5.4",
-    "@types/zxcvbn": "4.4.1",
     "@typescript-eslint/eslint-plugin": "5.54.1",
     "@typescript-eslint/parser": "5.54.1",
-    "electron": "26.2.2",
+    "buffer": "^5.7.1",
+    "electron": "23.1.3",
     "electron-builder": "23.6.0",
     "electron-devtools-installer": "3.2.0",
-    "electron-extension-installer": "1.2.0",
     "eslint": "8.35.0",
     "eslint-config-prettier": "8.7.0",
     "eslint-plugin-jest": "27.2.1",
@@ -179,7 +174,7 @@
     "node-abi": "3.33.0",
     "node-gyp": "9.3.1",
     "node-watch": "0.7.3",
-    "parcel": "2.9.2",
+    "parcel": "2.8.3",
     "prebuild-install": "7.1.1",
     "prettier": "2.8.4",
     "rimraf": "4.4.0",
@@ -211,9 +206,8 @@
   "bridge": "./bundle/bridge.js",
   "inject": "./bundle/inject.js",
   "tray": "./bundle/tray.html",
-  "workspace": "./bundle/workspace.html",
-  "workspaceDock": "./bundle/workspaceDock.html",
-  "workspaceRibbon": "./bundle/workspaceRibbon.html",
+  "dash": "./bundle/dash.html",
+  "dapp": "./bundle/dapp.html",
   "onboard": "./bundle/onboard.html",
   "notify": "./bundle/notify.html",
   "targets": {
@@ -225,13 +219,10 @@
         "inline": true
       }
     },
-    "workspace": {
+    "dash": {
       "context": "browser"
     },
-    "workspaceDock": {
-      "context": "browser"
-    },
-    "workspaceRibbon": {
+    "dapp": {
       "context": "browser"
     },
     "onboard": {
@@ -250,7 +241,7 @@
       "distDir": "./bundle"
     }
   },
-  "repository": "github:frame-labs/frame-canary",
+  "repository": "github:floating/frame",
   "lavamoat": {
     "allowScripts": {
       "$root$": false,
@@ -259,9 +250,9 @@
       "@ledgerhq/hw-transport-node-hid-noevents>node-hid": false,
       "@ledgerhq/hw-transport-node-hid-singleton>usb": false,
       "@parcel/core>@parcel/cache>lmdb": true,
-      "@parcel/config-default>@parcel/optimizer-swc>@swc/core": true,
       "@parcel/core>msgpackr>msgpackr-extract": false,
       "@trezor/connect>@trezor/transport>protobufjs": false,
+      "@trezor/connect>@trezor/transport>usb": false,
       "@trezor/connect>@trezor/utxo-lib>blake-hash": false,
       "@trezor/connect>@trezor/utxo-lib>tiny-secp256k1": false,
       "electron": true,

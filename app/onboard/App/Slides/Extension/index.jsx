@@ -14,9 +14,9 @@ const Extension = ({ setTitle, setProceed }) => {
       <SlideBody>
         <SlideItem>
           <div>If you're using a dapp that doesn't natively</div>
-          <div>connect to Frame, you can inject a connection with</div>
+          <div>connect to Emc-Frame, you can inject a connection with</div>
           <div>
-            our <Tag>Frame Companion</Tag> browser extension.
+            our <Tag>Emc-Frame Companion</Tag> browser extension.
           </div>
         </SlideItem>
         <SlideItem>
@@ -25,7 +25,7 @@ const Extension = ({ setTitle, setProceed }) => {
         </SlideItem>
         <div
           style={{
-            display: 'flex',
+            display: 'none',
             justifyContent: 'center'
           }}
         >

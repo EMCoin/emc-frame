@@ -7,8 +7,6 @@ import App from './App'
 import link from '../../resources/link'
 import appStore from '../store'
 
-import { StoreContext } from '../../resources/Hooks/useStore'
-
 Sentry.init({ dsn: 'https://7b09a85b26924609bef5882387e2c4dc@o1204372.ingest.sentry.io/6331069' })
 
 document.addEventListener('dragover', (e) => e.preventDefault())
@@ -46,11 +44,7 @@ link.rpc('getState', (err, state) => {
   })
   const root = createRoot(document.getElementById('tray'))
   const Tray = Restore.connect(AppComponent, store)
-  root.render(
-    <StoreContext.Provider value={store}>
-      <Tray />
-    </StoreContext.Provider>
-  )
+  root.render(<Tray />)
 })
 // document.addEventListener('mouseover', e => link.send('tray:focus'))
 document.addEventListener('mouseout', (e) => {

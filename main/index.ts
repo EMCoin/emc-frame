@@ -21,7 +21,6 @@ import { openBlockExplorer, openExternal } from './windows/window'
 import { FrameInstance } from './windows/frames/frameInstances'
 import Erc20Contract from './contracts/erc20'
 import { getErrorCode } from '../resources/utils'
-import { Workspace, Nav, View } from './windows/workspace/types'
 
 app.commandLine.appendSwitch('enable-accelerated-2d-canvas', 'true')
 app.commandLine.appendSwitch('enable-gpu-rasterization', 'true')
@@ -43,7 +42,7 @@ if (process.env.LOG_LEVEL === 'debug') {
 const hasInstanceLock = app.requestSingleInstanceLock()
 
 if (!hasInstanceLock) {
-  log.info('another instance of Frame is running - exiting...')
+  log.info('another instance of Emc-Frame is running - exiting...')
   app.exit(1)
 }
 
@@ -174,8 +173,8 @@ ipcMain.on('tray:openExternal', (e, url) => {
   store.setDash({ showing: false })
 })
 
-ipcMain.on('tray:openExplorer', (e, openExplorer) => {
-  openBlockExplorer(openExplorer)
+ipcMain.on('tray:openExplorer', (e, chain, hash, account) => {
+  openBlockExplorer(chain, hash, account)
 })
 
 ipcMain.on('tray:copyTxHash', (e, hash) => {
@@ -274,14 +273,6 @@ ipcMain.on('frame:unmax', (e) => {
   windows.unmax(e)
 })
 
-ipcMain.on('frame:full', (e) => {
-  windows.full(e)
-})
-
-ipcMain.on('frame:unfull', (e) => {
-  windows.unfull(e)
-})
-
 dapps.add({
   ens: 'send.frame.eth',
   checkStatusRetryCount: 0,
@@ -297,87 +288,23 @@ ipcMain.on('unsetCurrentView', async (e) => {
   dapps.unsetCurrentView(win.frameId as string)
 })
 
-let currentWorkspaceId = 1
-const getNextWorkspaceId = () => `workspace:${currentWorkspaceId++}`
+ipcMain.on('*:addFrame', (e, id) => {
+  const existingFrame = store('main.frames', id)
 
-let currentViewId = 1
-const getNextViewId = () => `view:${currentViewId++}`
-
-const createWorkspace = (initialNav: Nav) => {
-  const id = getNextWorkspaceId()
-  initialNav.views.map((view: View) => {
-    view.id = getNextViewId()
-    return view
-  })
-  store.addWorkspace({
-    id,
-    nav: [initialNav],
-    fullscreen: false,
-    ribbon: {
-      expanded: false
-    }
-  })
-}
-
-const navWorkspace = (id: string, space: string, data: any = {}, views = []) => {
-  const nav = createWorkspaceNav(space, data, views)
-  store.navWorkspace(id, nav)
-}
-
-const runWorkspace = (nav: Nav) => {
-  // For now we just running a single workspace
-  const workspaces = store('windows.workspaces') || []
-  const workspaceId = Object.keys(workspaces).length > 0 ? Object.keys(workspaces)[0] : undefined
-
-  if (workspaceId) {
-    store.navWorkspace(workspaceId, nav)
-    windows.refocusFrame(workspaceId)
+  if (existingFrame) {
+    windows.refocusFrame(id)
   } else {
-    createWorkspace(nav)
+    store.addFrame({
+      id,
+      currentView: '',
+      views: {}
+    })
+    dapps.open(id, 'send.frame.eth')
   }
-}
-
-const createWorkspaceNav = (space: string, data: {} = {}, loadViews: string[] = []): Nav => {
-  const views = loadViews.map((ens) => {
-    const { dappId, session, url } = dapps.createSession(ens)
-    return {
-      id: getNextViewId(),
-      ens,
-      dappId,
-      session,
-      url
-    }
-  })
-  return { space, data, views }
-}
-
-ipcMain.on('workspace:nav:update:data', (e, workspaceId, data) => {
-  store.updateNavData(workspaceId, data)
-})
-
-ipcMain.on('workspace:nav', (e, workspaceId, space, data, views) => {
-  navWorkspace(workspaceId, space, data, views)
-})
-
-ipcMain.on('workspace:nav:back', (e, workspaceId, steps) => {
-  store.traverseWorkspace(workspaceId, 'backward', steps)
-})
-
-ipcMain.on('workspace:nav:forward', (e, workspaceId, steps) => {
-  store.traverseWorkspace(workspaceId, 'forward', steps)
-})
-
-ipcMain.on('workspace:run', (e, space, data, views) => {
-  const nav = createWorkspaceNav(space, data, views)
-  runWorkspace(nav)
-})
-
-ipcMain.on('workspace:ribbon', (e, spaceId, ribbon) => {
-  store.setRibbon(spaceId, ribbon)
 })
 
 app.on('ready', () => {
-  // menu()
+  menu()
   windows.init()
   if (app.dock) app.dock.hide()
   if (isDev) {
@@ -403,20 +330,11 @@ ipcMain.on('tray:action', (e, action, ...args) => {
   log.info('Tray sent unrecognized action: ', action)
 })
 
-const handleActivate = () => {
-  // if a workspace is already running, focus it
-  // otherwise, create a new workspace
-  const initialNav = createWorkspaceNav('command', {}, [])
-  runWorkspace(initialNav)
-}
-
 app.on('second-instance', (event, argv, workingDirectory) => {
   log.info(`second instance requested from directory: ${workingDirectory}`)
-  handleActivate()
+  windows.showTray()
 })
-app.on('activate', () => {
-  handleActivate()
-})
+app.on('activate', () => windows.showTray())
 
 app.on('before-quit', () => {
   if (!updater.updateReady) {

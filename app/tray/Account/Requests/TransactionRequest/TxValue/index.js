@@ -79,7 +79,7 @@ class TxSending extends React.Component {
             {address && (
               <ClusterRow>
                 <ClusterValue
-                  allowPointer={true}
+                  pointerEvents={true}
                   onClick={() => {
                     this.copyAddress(address)
                   }}

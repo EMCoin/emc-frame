@@ -1,9 +1,10 @@
 import store from '../../store'
 
 import { NATIVE_CURRENCY } from '../../../resources/constants'
-import { toTokenId } from '../../../resources/domain/balance'
 
-import type { NativeCurrency, Rate, AssetPreferences, TokenBalance } from '../../store/state/types'
+import type { Balance, NativeCurrency, Rate } from '../../store/state'
+
+export type UsdRate = { usd: Rate }
 
 interface AssetsChangedHandler {
   assetsChanged: (address: Address, assets: RPC.GetAssets.Assets) => void
@@ -11,7 +12,7 @@ interface AssetsChangedHandler {
 
 // typed access to state
 const storeApi = {
-  getBalances: (account: Address): TokenBalance[] => {
+  getBalances: (account: Address): Balance[] => {
     return store('main.balances', account) || []
   },
   getNativeCurrency: (chainId: number): NativeCurrency => {
@@ -19,15 +20,14 @@ const storeApi = {
 
     return currency || { usd: { price: 0 } }
   },
-  getUsdRate: (tokenId: string): Record<string, Rate> => {
-    const rate = store('main.rates', tokenId)
+  getUsdRate: (address: Address): UsdRate => {
+    const rate = store('main.rates', address.toLowerCase())
 
     return rate || { usd: { price: 0 } }
   },
   getLastUpdated: (account: Address): number => {
     return store('main.accounts', account, 'balances.lastUpdated')
-  },
-  getAssetPreferences: (): AssetPreferences => store('main.assetPreferences')
+  }
 }
 
 function createObserver(handler: AssetsChangedHandler) {
@@ -69,12 +69,7 @@ function fetchAssets(accountId: string) {
     erc20: [] as RPC.GetAssets.Erc20[]
   }
 
-  const assetPreferences = storeApi.getAssetPreferences()
-
   return balances.reduce((assets, balance) => {
-    const prefs = assetPreferences.tokens[balance.chainId + ':' + balance.address]
-    if (prefs ? prefs.hidden : balance.hideByDefault) return assets
-
     if (balance.address === NATIVE_CURRENCY) {
       const currency = storeApi.getNativeCurrency(balance.chainId)
 
@@ -83,7 +78,7 @@ function fetchAssets(accountId: string) {
         currencyInfo: currency
       })
     } else {
-      const usdRate = storeApi.getUsdRate(toTokenId(balance))
+      const usdRate = storeApi.getUsdRate(balance.address)
 
       assets.erc20.push({
         ...balance,

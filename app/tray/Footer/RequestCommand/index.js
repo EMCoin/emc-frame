@@ -101,11 +101,7 @@ class RequestCommand extends React.Component {
                     onClick={() => {
                       if (explorer && req && req.tx && req.tx.hash) {
                         if (this.store('main.mute.explorerWarning')) {
-                          link.send('tray:openExplorer', {
-                            type: 'tx',
-                            chain,
-                            hash: req.tx.hash
-                          })
+                          link.send('tray:openExplorer', chain, req.tx.hash)
                         } else {
                           this.store.notify('openExplorer', { hash: req.tx.hash, chain: chain })
                         }
@@ -195,9 +191,9 @@ class RequestCommand extends React.Component {
   infoPane() {
     const { infoPane } = this.state
     const info = {
-      sign: 'When Frame is waiting for your signer to sign this transaction',
-      send: 'When Frame is broadcasting this transaction to your selected endpoint',
-      block: 'When Frame is waiting for this transaction to be included into a block'
+      sign: 'When Emc-Frame is waiting for your signer to sign this transaction',
+      send: 'When Emc-Frame is broadcasting this transaction to your selected endpoint',
+      block: 'When Emc-Frame is waiting for this transaction to be included into a block'
     }
     return <div className='infoPane'>{info[infoPane]}</div>
   }

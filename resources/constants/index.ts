@@ -35,19 +35,8 @@ const NETWORK_PRESETS = {
   }
 }
 
-const COLORWAYS = {
-  dark: {
-    background: 'rgba(16, 12, 18, 1)',
-    text: 'rgb(241, 241, 255)'
-  },
-  light: {
-    background: 'rgba(224, 220, 233, 1)',
-    text: 'rgb(20, 40, 60)'
-  }
-}
-
 const ADDRESS_DISPLAY_CHARS = 8
 const NATIVE_CURRENCY = '0x0000000000000000000000000000000000000000'
 const MAX_HEX = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 
-export { NETWORK_PRESETS, COLORWAYS, ADDRESS_DISPLAY_CHARS, NATIVE_CURRENCY, MAX_HEX }
+export { NETWORK_PRESETS, ADDRESS_DISPLAY_CHARS, NATIVE_CURRENCY, MAX_HEX }

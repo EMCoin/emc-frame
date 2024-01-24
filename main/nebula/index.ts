@@ -29,7 +29,7 @@ const mainnetProvider = new EthereumProvider(proxyConnection)
 mainnetProvider.setChain(1)
 
 const isMainnetConnected = (chains: RPC.GetEthereumChains.Chain[]) =>
-  !!chains.find((chain) => chain.chainId === 1)?.connected
+  !!chains.find((chain) => chain.chainId === 7106)?.connected
 
 export default function (provider = mainnetProvider) {
   let ready = false

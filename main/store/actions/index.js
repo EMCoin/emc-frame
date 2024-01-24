@@ -36,19 +36,6 @@ function includesToken(tokens, token) {
   return tokens.some((t) => t.address.toLowerCase() === existingAddress && t.chainId === token.chainId)
 }
 
-const defaultBalanceSort = (balances) => {
-  balances
-    .sort((a, b) => {
-      const aId = `${a.symbol}:${a.address}`
-      const bId = `${b.symbol}:${b.address}`
-      return aId < bId ? -1 : aId > bId ? 1 : 0
-    })
-    .sort((a, b) => {
-      return a.chainId - b.chainId
-    })
-  return balances
-}
-
 module.exports = {
   ...panelActions,
   // setSync: (u, key, payload) => u(key, () => payload),
@@ -131,42 +118,20 @@ module.exports = {
       return dontRemind
     })
   },
+  setAccount: (u, account) => {
+    u('selected.current', () => account.id)
+    u('selected.minimized', () => false)
+    u('selected.open', () => true)
+  },
+  setAccountSignerStatusOpen: (u, value) => {
+    u('selected.signerStatusOpen', () => Boolean(value))
+  },
   accountTokensUpdated: (u, address) => {
     u('main.accounts', address, (account) => {
       const balances = { ...account.balances, lastUpdated: new Date().getTime() }
       const updated = { ...account, balances }
 
       return updated
-    })
-  },
-  addPopulatedChains: (u, address, chains, expiryWindow) => {
-    u('main.accounts', address, (account) => {
-      const populatedChains = account.balances.populatedChains || {}
-
-      chains.forEach((chain) => {
-        const lastUpdated = Date.now()
-        const expires = lastUpdated + expiryWindow
-        populatedChains[chain] = {
-          lastUpdated,
-          expires
-        }
-      })
-      const balances = { ...account.balances, populatedChains }
-      const updated = { ...account, balances }
-
-      log.debug('addPopulatedChains', { address, chains, updated, populatedChains })
-
-      return updated
-    })
-  },
-  clearPopulatedChains: (u) => {
-    u('main.accounts', (accounts) => {
-      Object.values(accounts).forEach((account) => {
-        if (account.balances && account.balances.populatedChains) {
-          account.balances.populatedChains = {}
-        }
-      })
-      return accounts
     })
   },
   updateAccount: (u, updatedAccount) => {
@@ -276,7 +241,7 @@ module.exports = {
     u('main.privacy.errorReporting', () => enable)
   },
   setGasFees: (u, netType, netId, fees) => {
-    u('main.networksMeta', netType, netId, 'gas.fees', () => fees)
+    u('main.networksMeta', netType, netId, 'gas.price.fees', () => fees)
   },
   setGasPrices: (u, netType, netId, prices) => {
     u('main.networksMeta', netType, netId, 'gas.price.levels', () => prices)
@@ -285,13 +250,12 @@ module.exports = {
     u('main.networksMeta', netType, netId, 'gas.price.selected', () => level)
     if (level === 'custom') {
       u('main.networksMeta', netType, netId, 'gas.price.levels.custom', () => price)
+    } else {
+      u('main.networksMeta', netType, netId, 'gas.price.lastLevel', () => level)
     }
   },
   setNativeCurrencyData: (u, netType, netId, currency) => {
     u('main.networksMeta', netType, netId, 'nativeCurrency', (existing) => ({ ...existing, ...currency }))
-  },
-  removeNativeCurrencyRate: (u, netType, netId) => {
-    u('main.networksMeta', netType, netId, 'nativeCurrency', ({ usd, ...currency }) => currency)
   },
   addNetwork: (u, net) => {
     try {
@@ -593,36 +557,20 @@ module.exports = {
   setRates: (u, rates) => {
     u('main.rates', (existingRates = {}) => ({ ...existingRates, ...rates }))
   },
-  removeRate: (u, contractAddress) => {
-    u('main.rates', (rates = {}) => {
-      delete rates[contractAddress]
-      return rates
-    })
-  },
   // Inventory
   setInventory: (u, address, inventory) => {
     u('main.inventory', address, () => inventory)
   },
-  setInventoryAssets: (u, address, collection, items) => {
-    u('main.inventory', address, collection, 'items', (existingItems = []) => {
-      const mergedItems = items.reduce((collectionItems, item) => {
-        collectionItems[item.tokenId] = item
-        return collectionItems
-      }, Object.fromEntries(existingItems.map((item) => [item.tokenId, item])))
-
-      return Object.values(mergedItems)
-    })
-  },
-  setBalance: (u, address, balance) => {
+  setBalance: (u, address, balance) => {    
     u('main.balances', address, (balances = []) => {
       const existingBalances = balances.filter(
         (b) => b.address !== balance.address || b.chainId !== balance.chainId
-      )
-      return defaultBalanceSort([...existingBalances, balance])
+      )      
+      return [...existingBalances, balance]
     })
   },
   // Tokens
-  setBalances: (u, address, newBalances) => {
+  setBalances: (u, address, newBalances) => {  
     u('main.balances', address, (balances = []) => {
       const existingBalances = balances.filter((b) => {
         return newBalances.every((bal) => bal.chainId !== b.chainId || bal.address !== b.address)
@@ -631,7 +579,7 @@ module.exports = {
       // TODO: possibly add an option to filter out zero balances
       //const withoutZeroBalances = Object.entries(updatedBalances)
       //.filter(([address, balanceObj]) => !(new BigNumber(balanceObj.balance)).isZero())
-      return defaultBalanceSort([...existingBalances, ...newBalances])
+      return [...existingBalances, ...newBalances]
     })
   },
   removeBalance: (u, chainId, address) => {
@@ -691,7 +639,7 @@ module.exports = {
           )
 
           if (matchingBalance) {
-            matchingBalance.media = token.media || matchingBalance.media
+            matchingBalance.logoURI = token.logoURI || matchingBalance.logoURI
             matchingBalance.symbol = token.symbol || matchingBalance.symbol
             matchingBalance.name = token.name || matchingBalance.symbol
           }
@@ -886,80 +834,6 @@ module.exports = {
       return dapps || {}
     })
   },
-  setRibbon: (u, workspaceId, ribbon) => {
-    u('windows.workspaces', workspaceId, (workspace) => {
-      workspace.ribbon = Object.assign({}, workspace.ribbon || {}, ribbon)
-      return workspace
-    })
-  },
-  // create a workspace
-  addWorkspace: (u, workspace) => {
-    u('windows.workspaces', workspace.id, () => workspace)
-  },
-
-  updateNavData: (u, workspaceId, data) => {
-    u('windows.workspaces', workspaceId, (workspace) => {
-      workspace.nav[0].data = Object.assign({}, workspace.nav[0].data, data)
-      return workspace
-    })
-  },
-  // add a nav to a workspace
-  navWorkspace: (u, workspaceId, nav) => {
-    u('windows.workspaces', workspaceId, (workspace) => {
-      workspace.nav.unshift(nav)
-      return workspace
-    })
-  },
-  // Merge this and navBack
-  navBackWorkspace: (u, windowId, numSteps = 1) => {
-    if (!windowId) return log.warn('Invalid nav back', windowId)
-    u('windows.workspaces', windowId, 'nav', (nav) => {
-      while (numSteps > 0 && nav.length > 0) {
-        nav.shift()
-        numSteps -= 1
-      }
-      return nav
-    })
-  },
-  traverseWorkspace: (u, windowId, direction, numSteps = 1) => {
-    if (!windowId) return log.warn('Invalid navigation', windowId)
-    u('windows.workspaces', windowId, (workspace) => {
-      // Initialize nav and navForward if they don't exist
-      if (!workspace.nav) workspace.nav = []
-      if (!workspace.navForward) workspace.navForward = []
-      let { nav, navForward } = workspace
-
-      if (direction === 'backward') {
-        while (numSteps > 0 && nav.length > 0) {
-          const shiftedItem = nav.shift()
-          navForward.push(shiftedItem)
-          numSteps -= 1
-        }
-      } else if (direction === 'forward') {
-        while (numSteps > 0 && navForward.length > 0) {
-          const poppedItem = navForward.pop()
-          nav.unshift(poppedItem)
-          numSteps -= 1
-        }
-      } else {
-        log.warn('Invalid direction', direction)
-      }
-
-      return workspace
-    })
-  },
-
-  // update a workspace
-  updateWorkspace: (u, workspaceId, update) => {
-    u('windows.workspaces', workspaceId, (workspace) => Object.assign({}, workspace, update))
-  },
-  // remove a workspace
-  removeWorkspace: (u, workspaceId) => {
-    u('windows.workspaces', (workspaces) => {
-      delete workspaces[workspaceId]
-      return workspaces
-    })
-  },
   addFrame: (u, frame) => {
     u('main.frames', frame.id, () => frame)
   },
@@ -1023,11 +897,27 @@ module.exports = {
       return views
     })
   },
+  unsetAccount: (u) => {
+    u('selected.open', () => false)
+    u('selected.minimized', () => true)
+    u('selected.view', () => 'default')
+    u('selected.showAccounts', () => false)
+    u('windows.panel.nav', () => [])
+    setTimeout(() => {
+      u('selected', (signer) => {
+        signer.last = signer.current
+        signer.current = ''
+        signer.requests = {}
+        signer.view = 'default'
+        return signer
+      })
+    }, 320)
+  },
   setAccountFilter: (u, value) => {
     u('panel.accountFilter', () => value)
   },
   setFooterHeight: (u, win, height) => {
-    u('windows', win, 'footer.height', () => height)
+    u('windows', win, 'footer.height', () => (height < 40 ? 40 : height))
   },
   updateTypedDataRequest: (u, account, reqId, data) => {
     u('main.accounts', account, 'requests', (requests) => {
@@ -1040,22 +930,9 @@ module.exports = {
 
       return requests
     })
-  },
-  setBalanceMode(u, newMode) {
-    u('main', (main) => {
-      main.balanceFetchMode = newMode
-      return main
-    })
-  },
-
-  updateAssetPreferences(u, preferenceType, chainId, collectionAddress, preferenceChanges) {
-    u('main.assetPreferences', preferenceType, (preferences) => {
-      const collectionId = `${chainId}:${collectionAddress}`
-      preferences[collectionId] = {
-        ...preferences[collectionId],
-        ...preferenceChanges
-      }
-      return preferences
-    })
   }
+  // toggleUSDValue: (u) => {
+  //   u('main.showUSDValue', show => !show)
+  // }
+  // __overwrite: (path, value) => u(path, () => value)
 }

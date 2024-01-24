@@ -4,11 +4,11 @@ import link from '../../resources/link'
 
 import Account from './Account'
 import Notify from './Notify'
-import { Header } from './Header'
+import Menu from './Menu'
 import Badge from './Badge'
 
-import PanelMenu from '../../resources/Components/PanelMenu'
-
+import Backdrop from './Backdrop'
+import AccountSelector from './AccountSelector'
 import Footer from './Footer'
 
 // import DevTools from 'restore-devtools'
@@ -76,9 +76,10 @@ class Panel extends React.Component {
       <div id='panel' style={{ opacity }}>
         <Badge />
         <Notify />
-        <PanelMenu window={'panel'} />
-        <Header />
+        <Menu />
+        <AccountSelector />
         <Account />
+        <Backdrop />
         <Footer />
       </div>
     )

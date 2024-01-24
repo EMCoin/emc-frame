@@ -433,12 +433,7 @@ describe('#send', () => {
               symbol: 'BADGER',
               name: 'BadgerDAO Token',
               decimals: 18,
-              media: {
-                source: 'https://badgerdao.io/icon.jpg',
-                format: 'image',
-                cdn: {}
-              },
-              hideByDefault: false
+              logoURI: 'https://badgerdao.io/icon.jpg'
             },
             payload: request
           })
@@ -668,7 +663,6 @@ describe('#send', () => {
     beforeEach(() => {
       store.set('main.accounts', address, { balances: { lastUpdated: new Date() } })
       store.set('main.balances', address, balances)
-      store.set('main.assetPreferences', { tokens: {}, collections: {} })
     })
 
     it('returns an error if no account is selected', (done) => {
@@ -827,13 +821,13 @@ describe('#send', () => {
 
       chainIds.forEach((chainId) => {
         store.set('main.networksMeta.ethereum', chainId, 'gas', {
-          fees: {
-            maxPriorityFeePerGas: gweiToHex(1),
-            maxBaseFeePerGas: gweiToHex(8)
-          },
           price: {
             selected: 'standard',
-            levels: { slow: '', standard: '', fast: gweiToHex(30), asap: '', custom: '' }
+            levels: { slow: '', standard: '', fast: gweiToHex(30), asap: '', custom: '' },
+            fees: {
+              maxPriorityFeePerGas: gweiToHex(1),
+              maxBaseFeePerGas: gweiToHex(8)
+            }
           }
         })
 
@@ -841,7 +835,7 @@ describe('#send', () => {
           primary: {
             connected: true
           },
-          chainConfig: chainConfig(chainId, chainId === 1 ? 'london' : 'istanbul')
+          chainConfig: chainConfig(chainId, chainId === 7106 ? 'london' : 'istanbul')
         }
       })
     })
@@ -962,13 +956,13 @@ describe('#send', () => {
             initialRequest.mode = 'monitor'
 
             store.set('main.networksMeta.ethereum', 137, 'gas', {
-              fees: {
-                maxPriorityFeePerGas: gweiToHex(1),
-                maxBaseFeePerGas: gweiToHex(8)
-              },
               price: {
                 selected: 'standard',
-                levels: { slow: '', standard: '', fast: gweiToHex(40), asap: '', custom: '' }
+                levels: { slow: '', standard: '', fast: gweiToHex(40), asap: '', custom: '' },
+                fees: {
+                  maxPriorityFeePerGas: gweiToHex(1),
+                  maxBaseFeePerGas: gweiToHex(8)
+                }
               }
             })
 
@@ -1034,13 +1028,13 @@ describe('#send', () => {
             initialRequest.mode = 'monitor'
 
             store.set('main.networksMeta.ethereum', 1, 'gas', {
-              fees: {
-                maxPriorityFeePerGas: gweiToHex(1),
-                maxBaseFeePerGas: gweiToHex(20)
-              },
               price: {
                 selected: 'standard',
-                levels: { slow: '', standard: '', fast: gweiToHex(40), asap: '', custom: '' }
+                levels: { slow: '', standard: '', fast: gweiToHex(40), asap: '', custom: '' },
+                fees: {
+                  maxPriorityFeePerGas: gweiToHex(1),
+                  maxBaseFeePerGas: gweiToHex(20)
+                }
               }
             })
 
@@ -1074,13 +1068,13 @@ describe('#send', () => {
 
             initialRequest.mode = 'monitor'
             store.set('main.networksMeta.ethereum', 1, 'gas', {
-              fees: {
-                maxPriorityFeePerGas: gweiToHex(2),
-                maxBaseFeePerGas: gweiToHex(14)
-              },
               price: {
                 selected: 'standard',
-                levels: { slow: '', standard: '', fast: gweiToHex(40), asap: '', custom: '' }
+                levels: { slow: '', standard: '', fast: gweiToHex(40), asap: '', custom: '' },
+                fees: {
+                  maxPriorityFeePerGas: gweiToHex(2),
+                  maxBaseFeePerGas: gweiToHex(14)
+                }
               }
             })
 
@@ -1561,13 +1555,13 @@ describe('#signAndSend', () => {
       })
 
       store.set('main.networksMeta.ethereum.1.gas', {
-        fees: {
-          maxPriorityFeePerGas: gweiToHex(1),
-          maxBaseFeePerGas: gweiToHex(8)
-        },
         price: {
           selected: 'standard',
-          levels: { slow: '', standard: '', fast: gweiToHex(30), asap: '', custom: '' }
+          levels: { slow: '', standard: '', fast: gweiToHex(30), asap: '', custom: '' },
+          fees: {
+            maxPriorityFeePerGas: gweiToHex(1),
+            maxBaseFeePerGas: gweiToHex(8)
+          }
         }
       })
     })
@@ -1864,7 +1858,7 @@ describe('state change events', () => {
     store.set('main.accounts', address, 'balances.lastUpdated', new Date())
     store.set('main.permissions', address, { 'test.frame': { origin: 'test.frame', provider: true } })
     store.set('main.networksMeta.ethereum.1.nativeCurrency', ethPriceData)
-    store.set('main.rates', `${tokenBalance.chainId}:${tokenBalance.address}`, tokenPriceData)
+    store.set('main.rates', tokenBalance.address, tokenPriceData)
     store.set('main.balances', address, [ethBalance, tokenBalance])
     store.set('selected.current', address)
 

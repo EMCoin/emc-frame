@@ -1,8 +1,8 @@
-import log from 'electron-log'
 import BigNumber from 'bignumber.js'
 import { BigNumber as EthersBigNumber } from '@ethersproject/bignumber'
 import { Interface } from '@ethersproject/abi'
 import { addHexPrefix } from '@ethereumjs/util'
+import log from 'electron-log'
 
 import multicall, { Call, supportsChain as multicallSupportsChain } from '../../multicall'
 import erc20TokenAbi from './erc-20-abi'
@@ -10,20 +10,31 @@ import { groupByChain, TokensByChain } from './reducers'
 
 import type { BytesLike } from '@ethersproject/bytes'
 import type EthereumProvider from 'ethereum-provider'
-import type { Balance, Token, TokenBalance } from '../../store/state/types'
+import type { Balance, Token } from '../../store/state'
 
 const erc20Interface = new Interface(erc20TokenAbi)
 
-export interface CurrencyBalance extends Balance {
+interface ExternalBalance {
+  balance: string
+  displayBalance: string
+}
+
+export interface TokenDefinition extends Omit<Token, 'logoURI'> {
+  logoUri?: string
+}
+
+export interface TokenBalance extends TokenDefinition, ExternalBalance {}
+
+export interface CurrencyBalance extends ExternalBalance {
   chainId: number
 }
 
 export interface BalanceLoader {
   getCurrencyBalances: (address: Address, chains: number[]) => Promise<CurrencyBalance[]>
-  getTokenBalances: (address: Address, tokens: Token[]) => Promise<TokenBalance[]>
+  getTokenBalances: (address: Address, tokens: TokenDefinition[]) => Promise<TokenBalance[]>
 }
 
-function createBalance(rawBalance: string, decimals: number): Balance {
+function createBalance(rawBalance: string, decimals: number): ExternalBalance {
   return {
     balance: rawBalance,
     displayBalance: new BigNumber(rawBalance).shiftedBy(-decimals).toString()
@@ -31,7 +42,7 @@ function createBalance(rawBalance: string, decimals: number): Balance {
 }
 
 export default function (eth: EthereumProvider) {
-  function balanceCalls(owner: string, tokens: Token[]): Call<EthersBigNumber, Balance>[] {
+  function balanceCalls(owner: string, tokens: TokenDefinition[]): Call<EthersBigNumber, ExternalBalance>[] {
     return tokens.map((token) => ({
       target: token.address,
       call: ['function balanceOf(address address) returns (uint256 value)', owner],
@@ -60,7 +71,7 @@ export default function (eth: EthereumProvider) {
     }
   }
 
-  async function getTokenBalance(token: Token, owner: string) {
+  async function getTokenBalance(token: TokenDefinition, owner: string) {
     const functionData = erc20Interface.encodeFunctionData('balanceOf', [owner])
 
     const response: BytesLike = await eth.request({
@@ -74,7 +85,7 @@ export default function (eth: EthereumProvider) {
     return result.balance.toHexString()
   }
 
-  async function getTokenBalancesFromContracts(owner: string, tokens: Token[]) {
+  async function getTokenBalancesFromContracts(owner: string, tokens: TokenDefinition[]) {
     const balances = tokens.map(async (token) => {
       try {
         const rawBalance = await getTokenBalance(token, owner)
@@ -91,10 +102,10 @@ export default function (eth: EthereumProvider) {
 
     const loadedBalances = await Promise.all(balances)
 
-    return loadedBalances.filter((bal) => bal !== undefined) as TokenBalance[]
+    return loadedBalances.filter((bal) => bal !== undefined) as Balance[]
   }
 
-  async function getTokenBalancesFromMulticall(owner: string, tokens: Token[], chainId: number) {
+  async function getTokenBalancesFromMulticall(owner: string, tokens: TokenDefinition[], chainId: number) {
     const calls = balanceCalls(owner, tokens)
 
     const results = await multicall(chainId, eth).batchCall(calls)
@@ -108,7 +119,7 @@ export default function (eth: EthereumProvider) {
       }
 
       return acc
-    }, [] as TokenBalance[])
+    }, [] as Balance[])
   }
 
   return {
@@ -117,7 +128,7 @@ export default function (eth: EthereumProvider) {
 
       return Promise.all(chains.map(fetchChainBalance))
     },
-    getTokenBalances: async function (owner: string, tokens: Token[]) {
+    getTokenBalances: async function (owner: string, tokens: TokenDefinition[]) {
       const tokensByChain = tokens.reduce(groupByChain, {} as TokensByChain)
 
       const tokenBalances = await Promise.all(

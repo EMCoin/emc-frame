@@ -1,8 +1,17 @@
 import EventEmitter from 'events'
 import { addHexPrefix, intToHex } from '@ethereumjs/util'
+import log from 'electron-log'
 
 import store from '../../../main/store'
 import { gweiToHex } from '../../util'
+
+log.transports.console.level = false
+
+jest.mock('electron', () => ({
+  powerMonitor: {
+    on: jest.fn()
+  }
+}))
 
 class MockConnection extends EventEmitter {
   constructor(chainId) {
@@ -116,7 +125,6 @@ const state = {
     networksMeta: {
       ethereum: {
         5: {
-          fees: {},
           gas: {
             price: {
               selected: 'standard',
@@ -126,7 +134,6 @@ const state = {
         },
         137: {
           gas: {
-            fees: {},
             price: {
               selected: 'standard',
               levels: { slow: '', standard: '', fast: '', asap: '', custom: '' }
@@ -236,15 +243,15 @@ Object.values(mockConnections).forEach((chain) => {
     const expectedPriorityFee = 32e9
 
     observer = store.observer(() => {
-      const { price, fees } = store(`main.networksMeta.ethereum.${chain.id}.gas`)
+      const gas = store(`main.networksMeta.ethereum.${chain.id}.gas.price`)
 
-      if (fees.maxBaseFeePerGas) {
-        expect(fees.maxBaseFeePerGas).toBe(intToHex(expectedBaseFee))
-        expect(fees.maxPriorityFeePerGas).toBe(intToHex(expectedPriorityFee))
-        expect(fees.maxFeePerGas).toBe(intToHex(expectedBaseFee + expectedPriorityFee))
+      if (gas.fees.maxBaseFeePerGas) {
+        expect(gas.fees.maxBaseFeePerGas).toBe(intToHex(expectedBaseFee))
+        expect(gas.fees.maxPriorityFeePerGas).toBe(intToHex(expectedPriorityFee))
+        expect(gas.fees.maxFeePerGas).toBe(intToHex(expectedBaseFee + expectedPriorityFee))
 
-        expect(price.selected).toBe('fast')
-        expect(price.levels.fast).toBe(intToHex(expectedBaseFee + expectedPriorityFee))
+        expect(gas.selected).toBe('fast')
+        expect(gas.levels.fast).toBe(intToHex(expectedBaseFee + expectedPriorityFee))
 
         done()
       }

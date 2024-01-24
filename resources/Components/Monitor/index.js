@@ -32,7 +32,7 @@ function levelDisplay(level) {
   return roundGwei(gwei) || 0
 }
 
-function toDisplayUSD(bn) {
+function toDisplayUSD(bn) {  
   if (bn.toNumber() === 0) return '?'
   return parseFloat(
     bn.toNumber() >= 1
@@ -41,7 +41,7 @@ function toDisplayUSD(bn) {
   )
 }
 
-function txEstimate(value, gasLimit, nativeUSD) {
+function txEstimate(value, gasLimit, nativeUSD) {  
   return toDisplayUSD(
     BigNumber(value * gasLimit)
       .shiftedBy(-9)
@@ -150,18 +150,18 @@ class ChainSummaryComponent extends Component {
           '0x02f903f60a808402bbcd0b8402bbcd638304b057943fc91a3afd70395cd496c647d5a6cc9d4b2b7fad8806e1a38167665296b903c43593564c000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000064cb05c500000000000000000000000000000000000000000000000000000000000000030b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001e00000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000006e1a38167665296000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000420fbb40ad6fe5a000000000000000000000000000000000000000000000011ac6ccb6849433fc000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002b4200000000000000000000000000000000000006000bb842000000000000000000000000000000000000420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000002c0a7cd5c8f543c00000000000000000000000000000000000000000000000bc9f7effabef331c200000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002b42000000000000000000000000000000000000060001f44200000000000000000000000000000000000042000000000000000000000000000000000000000000c0'
       }
     ]
-
+    
     const isTestnet = this.store('main.networks', type, id, 'isTestnet')
     const nativeCurrency = this.store('main.networksMeta', type, id, 'nativeCurrency')
     const nativeUSD = BigNumber(
       nativeCurrency && nativeCurrency.usd && !isTestnet ? nativeCurrency.usd.price : 0
-    )
-
+    )      
+    
     if (chainUsesOptimismFees(id)) {
       // Optimism specific calculations
       const price = calculatedFees?.actualFee || gasPrice
 
-      const feeMarket = this.store('main.networksMeta.ethereum', 1, 'gas.fees') || {}
+      const feeMarket = this.store('main.networksMeta.ethereum', 1, 'gas.price.fees') || {}
       const { nextBaseFee: ethBaseFee } = feeMarket
 
       const optimismEstimate = (serializedTx, l2Limit) => {
@@ -181,7 +181,7 @@ class ChainSummaryComponent extends Component {
     const low = calculatedFees
       ? roundGwei(calculatedFees.actualBaseFee + calculatedFees.priorityFee)
       : gasPrice
-
+    
     return estimates.map(({ label, estimatedGas }) => ({
       low: txEstimate(low, estimatedGas, nativeUSD),
       high: txEstimate(gasPrice, estimatedGas, nativeUSD),
@@ -189,16 +189,20 @@ class ChainSummaryComponent extends Component {
     }))
   }
 
-  feeEstimatesUSD({ chainId, gasPrice }) {
+  feeEstimatesUSD({ chainId, displayFeeMarket, gasPrice }) {
     const type = 'ethereum'
     const currentSymbol = this.store('main.networksMeta', type, chainId, 'nativeCurrency', 'symbol') || 'ETH'
-    const feeMarket = this.store('main.networksMeta', type, chainId, 'gas.fees')
-
-    if (!feeMarket) {
+    
+    if (!displayFeeMarket) {      
       return this.txEstimates(type, chainId, gasPrice, null, currentSymbol)
     }
 
-    const { nextBaseFee, maxPriorityFeePerGas } = feeMarket
+    const { nextBaseFee, maxPriorityFeePerGas } = this.store(
+      'main.networksMeta',
+      type,
+      chainId,
+      'gas.price.fees'
+    )
     const calculatedFees = {
       actualBaseFee: roundGwei(weiToGwei(hexToInt(nextBaseFee))),
       priorityFee: levelDisplay(maxPriorityFeePerGas)
@@ -211,7 +215,7 @@ class ChainSummaryComponent extends Component {
     const { address, chainId } = this.props
     const type = 'ethereum'
     const currentChain = { type, id: chainId }
-    const fees = this.store('main.networksMeta', type, chainId, 'gas.fees')
+    const fees = this.store('main.networksMeta', type, chainId, 'gas.price.fees')
     const levels = this.store('main.networksMeta', type, chainId, 'gas.price.levels')
     const gasPrice = levelDisplay(levels.fast)
 
@@ -248,11 +252,7 @@ class ChainSummaryComponent extends Component {
               explorer
                 ? () => {
                     if (address) {
-                      link.send('tray:openExplorer', {
-                        type: 'address',
-                        chain: currentChain,
-                        address
-                      })
+                      link.send('tray:openExplorer', currentChain, null, address)
                     } else {
                       link.rpc('openExplorer', currentChain, () => {})
                     }
@@ -267,7 +267,7 @@ class ChainSummaryComponent extends Component {
         </ClusterRow>
         {this.state.expanded && (
           <ClusterRow>
-            <ClusterValue allowPointer={true}>
+            <ClusterValue pointerEvents={true}>
               <div className='sliceGasBlock'>
                 {displayFeeMarket ? (
                   <GasFeesMarket gasPrice={gasPrice} fees={fees} color={this.props.color} />
@@ -279,7 +279,7 @@ class ChainSummaryComponent extends Component {
           </ClusterRow>
         )}
         <ClusterRow>
-          {this.feeEstimatesUSD({ chainId, gasPrice }).map((estimate, i) => {
+          {this.feeEstimatesUSD({ chainId, displayFeeMarket, gasPrice }).map((estimate, i) => {
             return (
               <ClusterValue key={i}>
                 <div className='gasEstimate'>

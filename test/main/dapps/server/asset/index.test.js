@@ -47,7 +47,7 @@ it('returns a stream with the asset contents', async () => {
     expect.stringMatching(/content-type/)
   )
 
-  return expect(res.getResponseData()).resolves.toBe('hello, Frame!')
+  return expect(res.getResponseData()).resolves.toBe('hello, Emc-Frame!')
 })
 
 it('streams a dapp from its root path', () => {
